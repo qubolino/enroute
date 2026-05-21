@@ -43,7 +43,7 @@ namespace Units {
          *
          * @returns volume
          */
-        static constexpr auto fromL(double volumeInL) -> Volume
+        Q_INVOKABLE static constexpr Volume fromL(double volumeInL)
         {
             Volume result;
             result.m_volumeInL = volumeInL;
@@ -56,7 +56,7 @@ namespace Units {
          *
          * @returns volume
          */
-        static constexpr auto fromGAL(double volumeInGAL) -> Volume
+        Q_INVOKABLE static constexpr Volume fromGAL(double volumeInGAL)
         {
             Volume result;
             result.m_volumeInL = LitersPerGallon*volumeInGAL;

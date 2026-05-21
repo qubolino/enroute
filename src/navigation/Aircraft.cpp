@@ -20,6 +20,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonParseError>
 
@@ -35,6 +36,60 @@ using namespace Qt::Literals::StringLiterals;
 // Setter Methods
 //
 
+void Navigation::Aircraft::setMaxFuelCapacity(Units::Volume newVolume)
+{
+    if (newVolume.toL() < 0.0 || newVolume > maxValidFuelVolume) {
+        newVolume = Units::Volume();
+    }
+    m_maxFuelCapacity = newVolume;
+}
+
+
+void Navigation::Aircraft::setUnusableFuel(Units::Volume newVolume)
+{
+    if (newVolume.toL() < 0.0 || newVolume > maxValidFuelVolume) {
+        newVolume = Units::Volume();
+    }
+    m_unusableFuel = newVolume;
+}
+
+
+void Navigation::Aircraft::setAdditionalFuel(Units::Volume newVolume)
+{
+    if (newVolume.toL() < 0.0 || newVolume > maxValidFuelVolume) {
+        newVolume = Units::Volume();
+    }
+    m_additionalFuel = newVolume;
+}
+
+
+void Navigation::Aircraft::setClimbSpeed(Units::Speed newSpeed)
+{
+    if ((newSpeed < minValidSpeed) || (newSpeed > maxValidSpeed)) {
+        newSpeed = Units::Speed();
+    }
+    m_climbSpeed = newSpeed;
+}
+
+
+void Navigation::Aircraft::setClimbVerticalSpeed(Units::Speed newSpeed)
+{
+    if ((newSpeed < minValidVerticalSpeed) || (newSpeed > maxValidVerticalSpeed)) {
+        newSpeed = Units::Speed();
+    }
+    m_climbVerticalSpeed = newSpeed;
+}
+
+
+void Navigation::Aircraft::setClimbFuelConsumption(Units::VolumeFlow newFlow)
+{
+    if ((newFlow < minValidFuelConsumption) || (newFlow > maxValidFuelConsumption)) {
+        newFlow = Units::VolumeFlow();
+    }
+    m_climbFuelConsumption = newFlow;
+}
+
+
 void Navigation::Aircraft::setCruiseSpeed(Units::Speed newSpeed)
 {
     if ((newSpeed < minValidSpeed) || (newSpeed > maxValidSpeed)) {
@@ -44,12 +99,57 @@ void Navigation::Aircraft::setCruiseSpeed(Units::Speed newSpeed)
 }
 
 
+void Navigation::Aircraft::setCruiseVerticalSpeed(Units::Speed newSpeed)
+{
+    if ((newSpeed < minValidVerticalSpeed) || (newSpeed > maxValidVerticalSpeed)) {
+        newSpeed = Units::Speed();
+    }
+    m_cruiseVerticalSpeed = newSpeed;
+}
+
+
 void Navigation::Aircraft::setDescentSpeed(Units::Speed newSpeed)
 {
     if ((newSpeed < minValidSpeed) || (newSpeed > maxValidSpeed)) {
         newSpeed = Units::Speed();
     }
     m_descentSpeed = newSpeed;
+}
+
+
+void Navigation::Aircraft::setDescentVerticalSpeed(Units::Speed newSpeed)
+{
+    if ((newSpeed < minValidVerticalSpeed) || (newSpeed > maxValidVerticalSpeed)) {
+        newSpeed = Units::Speed();
+    }
+    m_descentVerticalSpeed = newSpeed;
+}
+
+
+void Navigation::Aircraft::setDescentFuelConsumption(Units::VolumeFlow newFlow)
+{
+    if ((newFlow < minValidFuelConsumption) || (newFlow > maxValidFuelConsumption)) {
+        newFlow = Units::VolumeFlow();
+    }
+    m_descentFuelConsumption = newFlow;
+}
+
+
+void Navigation::Aircraft::setGlideSpeed(Units::Speed newSpeed)
+{
+    if ((newSpeed < minValidSpeed) || (newSpeed > maxValidSpeed)) {
+        newSpeed = Units::Speed();
+    }
+    m_glideSpeed = newSpeed;
+}
+
+
+void Navigation::Aircraft::setGlideVerticalSpeed(Units::Speed newSpeed)
+{
+    if ((newSpeed < minValidVerticalSpeed) || (newSpeed > maxValidVerticalSpeed)) {
+        newSpeed = Units::Speed();
+    }
+    m_glideVerticalSpeed = newSpeed;
 }
 
 
@@ -85,6 +185,12 @@ void Navigation::Aircraft::setMinimumSpeed(Units::Speed newSpeed)
 }
 
 
+void Navigation::Aircraft::setIcaoType(const QString& newIcaoType)
+{
+    m_icaoType = newIcaoType;
+}
+
+
 void Navigation::Aircraft::setName(const QString& newName)
 {
     m_name = newName;
@@ -100,6 +206,32 @@ void Navigation::Aircraft::setTransponderCode(const QString& newCode)
 void Navigation::Aircraft::setVerticalDistanceUnit(VerticalDistanceUnit newUnit)
 {
     m_verticalDistanceUnit = newUnit;
+}
+
+
+void Navigation::Aircraft::setWbWeightUnit(WBWeightUnit u) { m_wbWeightUnit = u; }
+void Navigation::Aircraft::setWbLengthUnit(WBLengthUnit u) { m_wbLengthUnit = u; }
+void Navigation::Aircraft::setWbEmptyMass(double v) { m_wbEmptyMass = v; }
+void Navigation::Aircraft::setWbEmptyArm(double v) { m_wbEmptyArm = v; }
+void Navigation::Aircraft::setWbPilotFrontMaxMass(double v) { m_wbPilotFrontMaxMass = v; }
+void Navigation::Aircraft::setWbPilotFrontArm(double v) { m_wbPilotFrontArm = v; }
+void Navigation::Aircraft::setWbRearPaxMaxMass(double v) { m_wbRearPaxMaxMass = v; }
+void Navigation::Aircraft::setWbRearPaxArm(double v) { m_wbRearPaxArm = v; }
+void Navigation::Aircraft::setWbCargoMaxMass(double v) { m_wbCargoMaxMass = v; }
+void Navigation::Aircraft::setWbCargoArm(double v) { m_wbCargoArm = v; }
+void Navigation::Aircraft::setWbFuelMaxMass(double v) { m_wbFuelMaxMass = v; }
+void Navigation::Aircraft::setWbFuelArm(double v) { m_wbFuelArm = v; }
+void Navigation::Aircraft::setWbOilMaxMass(double v) { m_wbOilMaxMass = v; }
+void Navigation::Aircraft::setWbOilArm(double v) { m_wbOilArm = v; }
+
+void Navigation::Aircraft::setWbEnvMasses(const QVariantList& v)
+{
+    m_wbEnvMasses = v.mid(0, 7);
+}
+
+void Navigation::Aircraft::setWbEnvArms(const QVariantList& v)
+{
+    m_wbEnvArms = v.mid(0, 7);
 }
 
 
@@ -233,15 +365,50 @@ QString Navigation::Aircraft::loadFromJSON(const QByteArray &JSON)
     }
 
     setCabinPressureEqualsStaticPressure( content[QStringLiteral("cabinPressureEqualsStaticPressure")].toBool(false) );
+    setMaxFuelCapacity( Units::Volume::fromL( content[QStringLiteral("maxFuelCapacity_l")].toDouble(NAN) ));
+    setUnusableFuel( Units::Volume::fromL( content[QStringLiteral("unusableFuel_l")].toDouble(NAN) ));
+    setAdditionalFuel( Units::Volume::fromL( content[QStringLiteral("additionalFuel_l")].toDouble(NAN) ));
+    setClimbSpeed( Units::Speed::fromMPS( content[QStringLiteral("climbSpeed_mps")].toDouble(NAN) ));
+    setClimbVerticalSpeed( Units::Speed::fromFPM( content[QStringLiteral("climbVerticalSpeed_fpm")].toDouble(NAN) ));
+    setClimbFuelConsumption( Units::VolumeFlow::fromLPH( content[QStringLiteral("climbFuelConsumption_lph")].toDouble(NAN) ));
     setCruiseSpeed( Units::Speed::fromMPS( content[QStringLiteral("cruiseSpeed_mps")].toDouble(NAN) ));
+    setCruiseVerticalSpeed( Units::Speed::fromFPM( content[QStringLiteral("cruiseVerticalSpeed_fpm")].toDouble(NAN) ));
     setDescentSpeed( Units::Speed::fromMPS( content[QStringLiteral("descentSpeed_mps")].toDouble(NAN) ));
+    setDescentVerticalSpeed( Units::Speed::fromFPM( content[QStringLiteral("descentVerticalSpeed_fpm")].toDouble(NAN) ));
+    setDescentFuelConsumption( Units::VolumeFlow::fromLPH( content[QStringLiteral("descentFuelConsumption_lph")].toDouble(NAN) ));
     setFuelConsumption( Units::VolumeFlow::fromLPH( content[QStringLiteral("fuelConsumption_lph")].toDouble(NAN) ));
     setFuelConsumptionUnit( static_cast<FuelConsumptionUnit>(content[QStringLiteral("fuelConsumptionUnit")].toInt(LiterPerHour)) );
+    setGlideSpeed( Units::Speed::fromMPS( content[QStringLiteral("glideSpeed_mps")].toDouble(NAN) ));
+    setGlideVerticalSpeed( Units::Speed::fromFPM( content[QStringLiteral("glideVerticalSpeed_fpm")].toDouble(NAN) ));
     setHorizontalDistanceUnit( static_cast<HorizontalDistanceUnit>(content[QStringLiteral("horizontalDistanceUnit")].toInt(NauticalMile)) );
+    setIcaoType( content[QStringLiteral("icaoType")].toString() );
     setMinimumSpeed( Units::Speed::fromMPS( content[QStringLiteral("minimumSpeed_mps")].toDouble(NAN) ));
     setName( content[QStringLiteral("name")].toString() );
     setTransponderCode( content[QStringLiteral("transponderCode")].toString() );
     setVerticalDistanceUnit( static_cast<VerticalDistanceUnit>(content[QStringLiteral("verticalDistanceUnit")].toInt(Feet)) );
+    setWbWeightUnit( static_cast<WBWeightUnit>(content[QStringLiteral("wbWeightUnit")].toInt(WBKilogram)) );
+    setWbLengthUnit( static_cast<WBLengthUnit>(content[QStringLiteral("wbLengthUnit")].toInt(WBMillimeter)) );
+    setWbEmptyMass( content[QStringLiteral("wbEmptyMass_kg")].toDouble(qQNaN()) );
+    setWbEmptyArm( content[QStringLiteral("wbEmptyArm_m")].toDouble(qQNaN()) );
+    setWbPilotFrontMaxMass( content[QStringLiteral("wbPilotFrontMaxMass_kg")].toDouble(qQNaN()) );
+    setWbPilotFrontArm( content[QStringLiteral("wbPilotFrontArm_m")].toDouble(qQNaN()) );
+    setWbRearPaxMaxMass( content[QStringLiteral("wbRearPaxMaxMass_kg")].toDouble(qQNaN()) );
+    setWbRearPaxArm( content[QStringLiteral("wbRearPaxArm_m")].toDouble(qQNaN()) );
+    setWbCargoMaxMass( content[QStringLiteral("wbCargoMaxMass_kg")].toDouble(qQNaN()) );
+    setWbCargoArm( content[QStringLiteral("wbCargoArm_m")].toDouble(qQNaN()) );
+    setWbFuelMaxMass( content[QStringLiteral("wbFuelMaxMass_kg")].toDouble(qQNaN()) );
+    setWbFuelArm( content[QStringLiteral("wbFuelArm_m")].toDouble(qQNaN()) );
+    setWbOilMaxMass( content[QStringLiteral("wbOilMaxMass_kg")].toDouble(qQNaN()) );
+    setWbOilArm( content[QStringLiteral("wbOilArm_m")].toDouble(qQNaN()) );
+    {
+        QVariantList masses, arms;
+        const auto massArr = content[QStringLiteral("wbEnvMasses_kg")].toArray();
+        const auto armArr  = content[QStringLiteral("wbEnvArms_m")].toArray();
+        for (const auto& v : massArr) masses.append(v.toDouble(qQNaN()));
+        for (const auto& v : armArr)  arms.append(v.toDouble(qQNaN()));
+        setWbEnvMasses(masses);
+        setWbEnvArms(arms);
+    }
 
     return {};
 }
@@ -274,15 +441,48 @@ QByteArray Navigation::Aircraft::toJSON() const
     jsonObj.insert(QStringLiteral("content"), "aircraft");
 
     jsonObj.insert(QStringLiteral("cabinPressureEqualsStaticPressure"), m_cabinPressureEqualsStaticPressure);
+    jsonObj.insert(QStringLiteral("maxFuelCapacity_l"), m_maxFuelCapacity.toL());
+    jsonObj.insert(QStringLiteral("unusableFuel_l"), m_unusableFuel.toL());
+    jsonObj.insert(QStringLiteral("additionalFuel_l"), m_additionalFuel.toL());
+    jsonObj.insert(QStringLiteral("climbSpeed_mps"), m_climbSpeed.toMPS());
+    jsonObj.insert(QStringLiteral("climbVerticalSpeed_fpm"), m_climbVerticalSpeed.toFPM());
+    jsonObj.insert(QStringLiteral("climbFuelConsumption_lph"), m_climbFuelConsumption.toLPH());
     jsonObj.insert(QStringLiteral("cruiseSpeed_mps"), m_cruiseSpeed.toMPS());
+    jsonObj.insert(QStringLiteral("cruiseVerticalSpeed_fpm"), m_cruiseVerticalSpeed.toFPM());
     jsonObj.insert(QStringLiteral("descentSpeed_mps"), m_descentSpeed.toMPS());
+    jsonObj.insert(QStringLiteral("descentVerticalSpeed_fpm"), m_descentVerticalSpeed.toFPM());
+    jsonObj.insert(QStringLiteral("descentFuelConsumption_lph"), m_descentFuelConsumption.toLPH());
     jsonObj.insert(QStringLiteral("fuelConsumption_lph"), m_fuelConsumption.toLPH());
     jsonObj.insert(QStringLiteral("fuelConsumptionUnit"), m_fuelConsumptionUnit);
+    jsonObj.insert(QStringLiteral("glideSpeed_mps"), m_glideSpeed.toMPS());
+    jsonObj.insert(QStringLiteral("glideVerticalSpeed_fpm"), m_glideVerticalSpeed.toFPM());
     jsonObj.insert(QStringLiteral("horizontalDistanceUnit"), m_horizontalDistanceUnit);
+    jsonObj.insert(QStringLiteral("icaoType"), m_icaoType);
     jsonObj.insert(QStringLiteral("minimumSpeed_mps"), m_minimumSpeed.toMPS());
     jsonObj.insert(QStringLiteral("name"), m_name);
     jsonObj.insert(QStringLiteral("transponderCode"), m_transponderCode);
     jsonObj.insert(QStringLiteral("verticalDistanceUnit"), m_verticalDistanceUnit);
+    jsonObj.insert(QStringLiteral("wbWeightUnit"), m_wbWeightUnit);
+    jsonObj.insert(QStringLiteral("wbLengthUnit"), m_wbLengthUnit);
+    jsonObj.insert(QStringLiteral("wbEmptyMass_kg"), m_wbEmptyMass);
+    jsonObj.insert(QStringLiteral("wbEmptyArm_m"), m_wbEmptyArm);
+    jsonObj.insert(QStringLiteral("wbPilotFrontMaxMass_kg"), m_wbPilotFrontMaxMass);
+    jsonObj.insert(QStringLiteral("wbPilotFrontArm_m"), m_wbPilotFrontArm);
+    jsonObj.insert(QStringLiteral("wbRearPaxMaxMass_kg"), m_wbRearPaxMaxMass);
+    jsonObj.insert(QStringLiteral("wbRearPaxArm_m"), m_wbRearPaxArm);
+    jsonObj.insert(QStringLiteral("wbCargoMaxMass_kg"), m_wbCargoMaxMass);
+    jsonObj.insert(QStringLiteral("wbCargoArm_m"), m_wbCargoArm);
+    jsonObj.insert(QStringLiteral("wbFuelMaxMass_kg"), m_wbFuelMaxMass);
+    jsonObj.insert(QStringLiteral("wbFuelArm_m"), m_wbFuelArm);
+    jsonObj.insert(QStringLiteral("wbOilMaxMass_kg"), m_wbOilMaxMass);
+    jsonObj.insert(QStringLiteral("wbOilArm_m"), m_wbOilArm);
+    {
+        QJsonArray massArr, armArr;
+        for (const auto& v : m_wbEnvMasses) massArr.append(v.toDouble());
+        for (const auto& v : m_wbEnvArms)  armArr.append(v.toDouble());
+        jsonObj.insert(QStringLiteral("wbEnvMasses_kg"), massArr);
+        jsonObj.insert(QStringLiteral("wbEnvArms_m"), armArr);
+    }
 
     QJsonDocument doc;
     doc.setObject(jsonObj);
