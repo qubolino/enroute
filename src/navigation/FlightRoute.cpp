@@ -19,6 +19,7 @@
  ***************************************************************************/
 
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QStandardPaths>
 
 #include "FlightRoute.h"
@@ -29,6 +30,9 @@
 #include "geomaps/GeoMapProvider.h"
 #include "geomaps/GPX.h"
 #include "navigation/Navigator.h"
+#include "units/Angle.h"
+#include "units/Speed.h"
+#include "weather/Wind.h"
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -429,6 +433,56 @@ auto Navigation::FlightRoute::load(const QString& fileName) -> QString
         }
     }
     m_waypoints = newWaypoints;
+
+    // Reset W&B actual masses; restore from GeoJSON if present
+    m_wbActualPilotFrontKg = qQNaN();
+    m_wbActualRearPaxKg    = qQNaN();
+    m_wbActualCargoKg      = qQNaN();
+    m_wbActualFuelKg       = qQNaN();
+    m_wbActualOilKg        = qQNaN();
+    emit wbActualChanged();
+
+    {
+        QFile f(myFileName);
+        if (f.open(QIODevice::ReadOnly)) {
+            const auto doc = QJsonDocument::fromJson(f.readAll());
+            const auto obj = doc.object();
+
+            // Restore aircraft
+            const auto acftVal = obj[u"aircraft"_s];
+            if (acftVal.isObject()) {
+                const auto acftBytes = QJsonDocument(acftVal.toObject()).toJson();
+                Navigation::Aircraft acft;
+                if (acft.loadFromJSON(acftBytes).isEmpty())
+                    GlobalObject::navigator()->setAircraft(acft);
+            }
+
+            // Restore wind
+            const auto windVal = obj[u"wind"_s];
+            if (windVal.isObject()) {
+                const auto windObj = windVal.toObject();
+                Weather::Wind w;
+                if (windObj.contains(u"directionFromDeg"_s))
+                    w.setDirectionFrom(Units::Angle::fromDEG(windObj[u"directionFromDeg"_s].toDouble()));
+                if (windObj.contains(u"speedMPS"_s))
+                    w.setSpeed(Units::Speed::fromMPS(windObj[u"speedMPS"_s].toDouble()));
+                GlobalObject::navigator()->setWind(w);
+            }
+
+            // Restore W&B actual masses
+            const auto wbVal = obj[u"wb"_s];
+            if (wbVal.isObject()) {
+                const auto wbObj = wbVal.toObject();
+                if (wbObj.contains(u"pilotFrontKg"_s)) m_wbActualPilotFrontKg = wbObj[u"pilotFrontKg"_s].toDouble();
+                if (wbObj.contains(u"rearPaxKg"_s))    m_wbActualRearPaxKg    = wbObj[u"rearPaxKg"_s].toDouble();
+                if (wbObj.contains(u"cargoKg"_s))      m_wbActualCargoKg      = wbObj[u"cargoKg"_s].toDouble();
+                if (wbObj.contains(u"fuelKg"_s))       m_wbActualFuelKg       = wbObj[u"fuelKg"_s].toDouble();
+                if (wbObj.contains(u"oilKg"_s))        m_wbActualOilKg        = wbObj[u"oilKg"_s].toDouble();
+                emit wbActualChanged();
+            }
+        }
+    }
+
     return {};
 }
 
@@ -613,6 +667,39 @@ auto Navigation::FlightRoute::toGeoJSON() const -> QByteArray
     jsonObj.insert(QStringLiteral("type"), "FeatureCollection");
     jsonObj.insert(QStringLiteral("enroute"), GeoMaps::GeoJSON::indicatorFlightRoute());
     jsonObj.insert(QStringLiteral("features"), waypointArray);
+
+    // Persist current aircraft
+    {
+        const auto acftBytes = GlobalObject::navigator()->aircraft().toJSON();
+        const auto acftDoc   = QJsonDocument::fromJson(acftBytes);
+        if (!acftDoc.isNull() && acftDoc.isObject())
+            jsonObj.insert(u"aircraft"_s, acftDoc.object());
+    }
+
+    // Persist current wind
+    const auto wind = GlobalObject::navigator()->wind();
+    if (wind.directionFrom().isFinite() || wind.speed().isFinite()) {
+        QJsonObject windObj;
+        if (wind.directionFrom().isFinite())
+            windObj.insert(u"directionFromDeg"_s, wind.directionFrom().toDEG());
+        if (wind.speed().isFinite())
+            windObj.insert(u"speedMPS"_s, wind.speed().toMPS());
+        jsonObj.insert(u"wind"_s, windObj);
+    }
+
+    // Persist W&B actual masses
+    QJsonObject wbObj;
+    bool hasWb = false;
+    auto writeWb = [&](const QString& key, double val) {
+        if (!qIsNaN(val)) { wbObj.insert(key, val); hasWb = true; }
+    };
+    writeWb(u"pilotFrontKg"_s, m_wbActualPilotFrontKg);
+    writeWb(u"rearPaxKg"_s,    m_wbActualRearPaxKg);
+    writeWb(u"cargoKg"_s,      m_wbActualCargoKg);
+    writeWb(u"fuelKg"_s,       m_wbActualFuelKg);
+    writeWb(u"oilKg"_s,        m_wbActualOilKg);
+    if (hasWb)
+        jsonObj.insert(u"wb"_s, wbObj);
 
     QJsonDocument doc;
     doc.setObject(jsonObj);

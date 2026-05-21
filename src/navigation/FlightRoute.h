@@ -123,6 +123,13 @@ namespace Navigation
          */
         Q_PROPERTY(QString summary READ summary NOTIFY summaryChanged)
 
+        /*! \brief W&B actual masses (kg, NaN = not set) */
+        Q_PROPERTY(double wbActualPilotFrontKg READ wbActualPilotFrontKg WRITE setWbActualPilotFrontKg NOTIFY wbActualChanged)
+        Q_PROPERTY(double wbActualRearPaxKg    READ wbActualRearPaxKg    WRITE setWbActualRearPaxKg    NOTIFY wbActualChanged)
+        Q_PROPERTY(double wbActualCargoKg      READ wbActualCargoKg      WRITE setWbActualCargoKg      NOTIFY wbActualChanged)
+        Q_PROPERTY(double wbActualFuelKg       READ wbActualFuelKg       WRITE setWbActualFuelKg       NOTIFY wbActualChanged)
+        Q_PROPERTY(double wbActualOilKg        READ wbActualOilKg        WRITE setWbActualOilKg        NOTIFY wbActualChanged)
+
         /*! \brief List of waypoints in the flight route that are not airfields
          *
          * This property lists all the waypoints in the route that are not
@@ -182,6 +189,18 @@ namespace Navigation
          *  @returns Property summary
          */
         [[nodiscard]] auto summary() const -> QString;
+
+        [[nodiscard]] double wbActualPilotFrontKg() const { return m_wbActualPilotFrontKg; }
+        [[nodiscard]] double wbActualRearPaxKg()    const { return m_wbActualRearPaxKg; }
+        [[nodiscard]] double wbActualCargoKg()      const { return m_wbActualCargoKg; }
+        [[nodiscard]] double wbActualFuelKg()       const { return m_wbActualFuelKg; }
+        [[nodiscard]] double wbActualOilKg()        const { return m_wbActualOilKg; }
+
+        void setWbActualPilotFrontKg(double v) { if (qFuzzyCompare(v, m_wbActualPilotFrontKg) || (qIsNaN(v) && qIsNaN(m_wbActualPilotFrontKg))) return; m_wbActualPilotFrontKg = v; emit wbActualChanged(); }
+        void setWbActualRearPaxKg(double v)    { if (qFuzzyCompare(v, m_wbActualRearPaxKg)    || (qIsNaN(v) && qIsNaN(m_wbActualRearPaxKg)))    return; m_wbActualRearPaxKg    = v; emit wbActualChanged(); }
+        void setWbActualCargoKg(double v)      { if (qFuzzyCompare(v, m_wbActualCargoKg)      || (qIsNaN(v) && qIsNaN(m_wbActualCargoKg)))      return; m_wbActualCargoKg      = v; emit wbActualChanged(); }
+        void setWbActualFuelKg(double v)       { if (qFuzzyCompare(v, m_wbActualFuelKg)       || (qIsNaN(v) && qIsNaN(m_wbActualFuelKg)))       return; m_wbActualFuelKg       = v; emit wbActualChanged(); }
+        void setWbActualOilKg(double v)        { if (qFuzzyCompare(v, m_wbActualOilKg)        || (qIsNaN(v) && qIsNaN(m_wbActualOilKg)))        return; m_wbActualOilKg        = v; emit wbActualChanged(); }
 
         /*! \brief Getter function for the property with the same name
          *
@@ -408,6 +427,9 @@ namespace Navigation
         /*! \brief Notification signal for the property with the same name */
         void summaryChanged();
 
+        /*! \brief Notification signal for wbActual* properties */
+        void wbActualChanged();
+
     private slots:
 
     private:
@@ -423,6 +445,12 @@ namespace Navigation
 
         QProperty<QVector<Leg>> m_legs;
         QVector<Leg> computeLegs();
+
+        double m_wbActualPilotFrontKg = qQNaN();
+        double m_wbActualRearPaxKg    = qQNaN();
+        double m_wbActualCargoKg      = qQNaN();
+        double m_wbActualFuelKg       = qQNaN();
+        double m_wbActualOilKg        = qQNaN();
 
         QLocale myLocale;
     };

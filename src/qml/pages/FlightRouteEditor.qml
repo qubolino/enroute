@@ -24,6 +24,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import QtCharts
 
 import akaflieg_freiburg.enroute
 import "../dialogs"
@@ -463,6 +464,7 @@ Page {
         currentIndex: sv.currentIndex
         TabButton { text: qsTr("Route") }
         TabButton { text: qsTr("Wind") }
+        TabButton { text: qsTr("Aircraft") }
     }
 
     SwipeView{
@@ -691,6 +693,336 @@ Page {
 
             }
 
+        }
+
+        // Tab 3: Aircraft
+        DecoratedScrollView {
+            id: acftRouteTab
+            contentWidth: width
+            clip: true
+
+            function armText(m) {
+                if (isNaN(m)) return ""
+                var v
+                if (Navigator.aircraft.wbLengthUnit === Aircraft.WBMillimeter)  v = m * 1000
+                else if (Navigator.aircraft.wbLengthUnit === Aircraft.WBInch)   v = m / 0.0254
+                else                                                             v = m
+                return v.toLocaleString(Qt.locale(), "f", 1)
+            }
+
+            function massText(kg) {
+                if (isNaN(kg)) return ""
+                return (Navigator.aircraft.wbWeightUnit === Aircraft.WBPound ? kg * 2.20462 : kg).toLocaleString(Qt.locale(), "f", 1)
+            }
+
+            function massFromText(txt) {
+                var v = Number.fromLocaleString(Qt.locale(), txt)
+                return Navigator.aircraft.wbWeightUnit === Aircraft.WBPound ? v * 0.453592 : v
+            }
+
+            GridLayout {
+                anchors.left: parent.left
+                anchors.leftMargin: acftRouteTab.font.pixelSize
+                anchors.right: parent.right
+                anchors.rightMargin: acftRouteTab.font.pixelSize
+                columns: 3
+
+                Label { id: acftClrRef; visible: false }
+
+                // Aircraft selection
+                Label {
+                    text: qsTr("Aircraft")
+                    Layout.columnSpan: 3
+                    Layout.topMargin: font.pixelSize/2
+                    font.pixelSize: acftRouteTab.font.pixelSize*1.2
+                    font.bold: true
+                }
+
+                Label { text: qsTr("Select"); Layout.alignment: Qt.AlignBaseline }
+                ComboBox {
+                    id: aircraftSelector
+                    Layout.columnSpan: 2
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignBaseline
+                    model: Librarian.entries(Librarian.Aircraft, "")
+                    currentIndex: {
+                        for (var i = 0; i < model.length; i++) {
+                            if (model[i] === Navigator.aircraft.name) return i
+                        }
+                        return -1
+                    }
+                    onActivated: {
+                        PlatformAdaptor.vibrateBrief()
+                        var acft = Navigator.aircraft.clone()
+                        var err = acft.loadFromJSON(Librarian.fullPath(Librarian.Aircraft, currentText))
+                        if (err === "") {
+                            Navigator.aircraft = acft
+                            Navigator.flightRoute.wbActualPilotFrontKg = NaN
+                            Navigator.flightRoute.wbActualRearPaxKg    = NaN
+                            Navigator.flightRoute.wbActualCargoKg      = NaN
+                            Navigator.flightRoute.wbActualFuelKg       = NaN
+                            Navigator.flightRoute.wbActualOilKg        = NaN
+                        }
+                    }
+                }
+
+                // W&B table
+                Label {
+                    text: qsTr("Weight && Balance")
+                    Layout.columnSpan: 3
+                    Layout.topMargin: font.pixelSize/2
+                    font.pixelSize: acftRouteTab.font.pixelSize*1.2
+                    font.bold: true
+                }
+
+                // Column headers
+                Label { text: qsTr("Station"); font.bold: true; Layout.fillWidth: true }
+                Label {
+                    text: qsTr("Arm") + "\n(" + (Navigator.aircraft.wbLengthUnit === Aircraft.WBMeter ? "m" : Navigator.aircraft.wbLengthUnit === Aircraft.WBInch ? "inch" : "mm") + ")"
+                    font.bold: true; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                }
+                Label {
+                    text: qsTr("Actual Mass") + "\n(" + (Navigator.aircraft.wbWeightUnit === Aircraft.WBPound ? "lbs" : "kg") + ")"
+                    font.bold: true; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                }
+
+                // Empty Mass
+                Label { text: qsTr("Empty Mass"); Layout.alignment: Qt.AlignBaseline }
+                TextField {
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    readOnly: true; color: acftClrRef.color
+                    text: acftRouteTab.armText(Navigator.aircraft.wbEmptyArm)
+                }
+                TextField {
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    readOnly: true; color: acftClrRef.color
+                    text: acftRouteTab.massText(Navigator.aircraft.wbEmptyMass)
+                }
+
+                // Pilot and Front Pax
+                Label { text: qsTr("Pilot and Front Pax"); Layout.alignment: Qt.AlignBaseline }
+                TextField {
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    readOnly: true; color: acftClrRef.color
+                    text: acftRouteTab.armText(Navigator.aircraft.wbPilotFrontArm)
+                }
+                MyTextField {
+                    id: pilotFrontMassField
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    onEditingFinished: Navigator.flightRoute.wbActualPilotFrontKg = acftRouteTab.massFromText(text)
+                    text: acftRouteTab.massText(Navigator.flightRoute.wbActualPilotFrontKg)
+                }
+
+                // Rear Pax
+                Label { text: qsTr("Rear Pax"); Layout.alignment: Qt.AlignBaseline }
+                TextField {
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    readOnly: true; color: acftClrRef.color
+                    text: acftRouteTab.armText(Navigator.aircraft.wbRearPaxArm)
+                }
+                MyTextField {
+                    id: rearPaxMassField
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    onEditingFinished: Navigator.flightRoute.wbActualRearPaxKg = acftRouteTab.massFromText(text)
+                    text: acftRouteTab.massText(Navigator.flightRoute.wbActualRearPaxKg)
+                }
+
+                // Cargo
+                Label { text: qsTr("Cargo"); Layout.alignment: Qt.AlignBaseline }
+                TextField {
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    readOnly: true; color: acftClrRef.color
+                    text: acftRouteTab.armText(Navigator.aircraft.wbCargoArm)
+                }
+                MyTextField {
+                    id: cargoMassField
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    onEditingFinished: Navigator.flightRoute.wbActualCargoKg = acftRouteTab.massFromText(text)
+                    text: acftRouteTab.massText(Navigator.flightRoute.wbActualCargoKg)
+                }
+
+                // Fuel
+                Label { text: qsTr("Fuel"); Layout.alignment: Qt.AlignBaseline }
+                TextField {
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    readOnly: true; color: acftClrRef.color
+                    text: acftRouteTab.armText(Navigator.aircraft.wbFuelArm)
+                }
+                MyTextField {
+                    id: fuelMassField
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    onEditingFinished: Navigator.flightRoute.wbActualFuelKg = acftRouteTab.massFromText(text)
+                    text: acftRouteTab.massText(Navigator.flightRoute.wbActualFuelKg)
+                }
+
+                // Oil
+                Label { text: qsTr("Oil"); Layout.alignment: Qt.AlignBaseline }
+                TextField {
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    readOnly: true; color: acftClrRef.color
+                    text: acftRouteTab.armText(Navigator.aircraft.wbOilArm)
+                }
+                MyTextField {
+                    id: oilMassField
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignBaseline; Layout.minimumWidth: font.pixelSize*4
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    onEditingFinished: Navigator.flightRoute.wbActualOilKg = acftRouteTab.massFromText(text)
+                    text: acftRouteTab.massText(Navigator.flightRoute.wbActualOilKg)
+                }
+
+                // CG Envelope chart
+                ChartView {
+                    id: routeCgChart
+                    Layout.columnSpan: 3
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 300
+                    antialiasing: true
+                    legend.visible: false
+
+                    ValueAxis {
+                        id: routeAxisArm
+                        titleText: qsTr("Arm") + " (" + (Navigator.aircraft.wbLengthUnit === Aircraft.WBMeter ? "m" : Navigator.aircraft.wbLengthUnit === Aircraft.WBInch ? "inch" : "mm") + ")"
+                        tickType: ValueAxis.TicksDynamic
+                        tickInterval: Navigator.aircraft.wbLengthUnit === Aircraft.WBMillimeter ? 100
+                                    : Navigator.aircraft.wbLengthUnit === Aircraft.WBInch       ? 5
+                                    : 0.1
+                    }
+                    ValueAxis {
+                        id: routeAxisMass
+                        titleText: qsTr("Mass") + " (" + (Navigator.aircraft.wbWeightUnit === Aircraft.WBPound ? "lbs" : "kg") + ")"
+                        tickType: ValueAxis.TicksDynamic
+                        tickInterval: Navigator.aircraft.wbWeightUnit === Aircraft.WBPound ? 200 : 100
+                    }
+
+                    LineSeries {
+                        id: routeEnvelopeSeries
+                        axisX: routeAxisArm
+                        axisY: routeAxisMass
+                    }
+
+                    LineSeries {
+                        id: routeCgLine
+                        axisX: routeAxisArm
+                        axisY: routeAxisMass
+                        color: "red"
+                        width: 2
+                        pointsVisible: true
+                    }
+
+                    property string _deps: JSON.stringify(Navigator.aircraft.wbEnvMasses) +
+                                           JSON.stringify(Navigator.aircraft.wbEnvArms) +
+                                           Navigator.aircraft.wbWeightUnit +
+                                           Navigator.aircraft.wbLengthUnit +
+                                           Navigator.flightRoute.wbActualPilotFrontKg +
+                                           Navigator.flightRoute.wbActualRearPaxKg +
+                                           Navigator.flightRoute.wbActualCargoKg +
+                                           Navigator.flightRoute.wbActualFuelKg +
+                                           Navigator.flightRoute.wbActualOilKg
+                    on_DepsChanged: routeCgChart.rebuildSeries()
+                    Component.onCompleted: routeCgChart.rebuildSeries()
+
+                    function toArmDisplay(m) {
+                        if (Navigator.aircraft.wbLengthUnit === Aircraft.WBMillimeter) return m * 1000
+                        if (Navigator.aircraft.wbLengthUnit === Aircraft.WBInch)       return m / 0.0254
+                        return m
+                    }
+                    function toMassDisplay(kg) {
+                        return Navigator.aircraft.wbWeightUnit === Aircraft.WBPound ? kg * 2.20462 : kg
+                    }
+
+                    function computeCG(fuelKg) {
+                        var stations = [
+                            { mass: Navigator.aircraft.wbEmptyMass,                    arm: Navigator.aircraft.wbEmptyArm },
+                            { mass: Navigator.flightRoute.wbActualPilotFrontKg,        arm: Navigator.aircraft.wbPilotFrontArm },
+                            { mass: Navigator.flightRoute.wbActualRearPaxKg,           arm: Navigator.aircraft.wbRearPaxArm },
+                            { mass: Navigator.flightRoute.wbActualCargoKg,             arm: Navigator.aircraft.wbCargoArm },
+                            { mass: isNaN(fuelKg) ? 0 : fuelKg,                       arm: Navigator.aircraft.wbFuelArm },
+                            { mass: Navigator.flightRoute.wbActualOilKg,               arm: Navigator.aircraft.wbOilArm }
+                        ]
+                        var totalMass = 0, totalMoment = 0
+                        for (var i = 0; i < stations.length; i++) {
+                            var s = stations[i]
+                            if (isNaN(s.arm) || isNaN(s.mass)) continue
+                            totalMass   += s.mass
+                            totalMoment += s.mass * s.arm
+                        }
+                        if (totalMass <= 0 || isNaN(Navigator.aircraft.wbEmptyArm)) return null
+                        return { mass: totalMass, arm: totalMoment / totalMass }
+                    }
+
+                    function rebuildSeries() {
+                        routeEnvelopeSeries.clear()
+                        routeCgLine.clear()
+
+                        var masses = Navigator.aircraft.wbEnvMasses
+                        var arms   = Navigator.aircraft.wbEnvArms
+                        var count  = Math.min(masses.length, arms.length)
+                        var minArm = Infinity, maxArm = -Infinity
+                        var minMass = Infinity, maxMass = -Infinity
+                        var hasPoints = false
+
+                        for (var i = 0; i < count; i++) {
+                            var kg = masses[i]
+                            var m  = arms[i]
+                            if (kg === undefined || isNaN(kg) || m === undefined || isNaN(m)) continue
+                            var massDisplay = toMassDisplay(kg)
+                            var armDisplay  = toArmDisplay(m)
+                            routeEnvelopeSeries.append(armDisplay, massDisplay)
+                            if (armDisplay  < minArm)  minArm  = armDisplay
+                            if (armDisplay  > maxArm)  maxArm  = armDisplay
+                            if (massDisplay < minMass) minMass = massDisplay
+                            if (massDisplay > maxMass) maxMass = massDisplay
+                            hasPoints = true
+                        }
+                        if (hasPoints) {
+                            if (routeEnvelopeSeries.count > 1) {
+                                var fp = routeEnvelopeSeries.at(0)
+                                routeEnvelopeSeries.append(fp.x, fp.y)
+                            }
+                            var armPad  = (maxArm  - minArm)  * 0.1 || 1
+                            var massPad = (maxMass - minMass) * 0.1 || 1
+                            routeAxisArm.min  = minArm  - armPad
+                            routeAxisArm.max  = maxArm  + armPad
+                            routeAxisMass.min = minMass - massPad
+                            routeAxisMass.max = maxMass + massPad
+                        }
+
+                        // CG at full actual fuel and at 10% fuel
+                        var fullFuel = Navigator.flightRoute.wbActualFuelKg
+                        var cgFull   = computeCG(fullFuel)
+                        var cgMin    = computeCG(isNaN(fullFuel) ? NaN : fullFuel * 0.1)
+                        if (cgFull !== null && cgMin !== null) {
+                            var cgFullArm  = toArmDisplay(cgFull.arm)
+                            var cgFullMass = toMassDisplay(cgFull.mass)
+                            var cgMinArm   = toArmDisplay(cgMin.arm)
+                            var cgMinMass  = toMassDisplay(cgMin.mass)
+                            routeCgLine.append(cgFullArm, cgFullMass)
+                            routeCgLine.append(cgMinArm,  cgMinMass)
+                            // Extend axis range to include CG points
+                            if (!hasPoints) {
+                                routeAxisArm.min  = Math.min(cgFullArm,  cgMinArm)  - 1
+                                routeAxisArm.max  = Math.max(cgFullArm,  cgMinArm)  + 1
+                                routeAxisMass.min = Math.min(cgFullMass, cgMinMass) - 10
+                                routeAxisMass.max = Math.max(cgFullMass, cgMinMass) + 10
+                            } else {
+                                routeAxisArm.min  = Math.min(routeAxisArm.min,  cgFullArm,  cgMinArm)
+                                routeAxisArm.max  = Math.max(routeAxisArm.max,  cgFullArm,  cgMinArm)
+                                routeAxisMass.min = Math.min(routeAxisMass.min, cgFullMass, cgMinMass)
+                                routeAxisMass.max = Math.max(routeAxisMass.max, cgFullMass, cgMinMass)
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.columnSpan: 3
+                    Layout.preferredHeight: acftRouteTab.font.pixelSize
+                }
+            }
         }
 
     }
