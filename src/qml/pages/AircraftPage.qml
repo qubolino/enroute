@@ -23,6 +23,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
+import QtCharts
 import akaflieg_freiburg.enroute
 import "../dialogs"
 import "../items"
@@ -1199,6 +1200,85 @@ Page {
                             arms.push(NaN)
                             Navigator.aircraft.wbEnvMasses = masses
                             Navigator.aircraft.wbEnvArms = arms
+                        }
+                    }
+                }
+
+                // CG Envelope chart
+                ChartView {
+                    id: cgChart
+                    Layout.columnSpan: 3
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 300
+                    antialiasing: true
+                    legend.visible: false
+
+                    ValueAxis {
+                        id: axisArm
+                        titleText: qsTr("Arm") + " (" + (Navigator.aircraft.wbLengthUnit === Aircraft.WBMeter ? "m" : Navigator.aircraft.wbLengthUnit === Aircraft.WBInch ? "inch" : "mm") + ")"
+                        tickType: ValueAxis.TicksDynamic
+                        tickInterval: Navigator.aircraft.wbLengthUnit === Aircraft.WBMillimeter ? 100
+                                    : Navigator.aircraft.wbLengthUnit === Aircraft.WBInch       ? 5
+                                    : 0.1
+                    }
+                    ValueAxis {
+                        id: axisMass
+                        titleText: qsTr("Mass") + " (" + (Navigator.aircraft.wbWeightUnit === Aircraft.WBPound ? "lbs" : "kg") + ")"
+                        tickType: ValueAxis.TicksDynamic
+                        tickInterval: Navigator.aircraft.wbWeightUnit === Aircraft.WBPound ? 200 : 100
+                    }
+
+                    LineSeries {
+                        id: envelopeSeries
+                        axisX: axisArm
+                        axisY: axisMass
+                    }
+
+                    // Rebuild series whenever envelope data or units change
+                    property string _deps: JSON.stringify(Navigator.aircraft.wbEnvMasses) +
+                                           JSON.stringify(Navigator.aircraft.wbEnvArms) +
+                                           Navigator.aircraft.wbWeightUnit +
+                                           Navigator.aircraft.wbLengthUnit
+                    on_DepsChanged: cgChart.rebuildSeries()
+
+                    Component.onCompleted: cgChart.rebuildSeries()
+
+                    function rebuildSeries() {
+                        envelopeSeries.clear()
+                        var masses = Navigator.aircraft.wbEnvMasses
+                        var arms   = Navigator.aircraft.wbEnvArms
+                        var count  = Math.min(masses.length, arms.length)
+                        var minArm = Infinity, maxArm = -Infinity
+                        var minMass = Infinity, maxMass = -Infinity
+                        var hasPoints = false
+                        for (var i = 0; i < count; i++) {
+                            var kg = masses[i]
+                            var m  = arms[i]
+                            if (kg === undefined || isNaN(kg) || m === undefined || isNaN(m)) continue
+                            var massDisplay = Navigator.aircraft.wbWeightUnit === Aircraft.WBPound ? kg * 2.20462 : kg
+                            var armDisplay
+                            if (Navigator.aircraft.wbLengthUnit === Aircraft.WBMillimeter)      armDisplay = m * 1000
+                            else if (Navigator.aircraft.wbLengthUnit === Aircraft.WBInch)       armDisplay = m / 0.0254
+                            else                                                                 armDisplay = m
+                            envelopeSeries.append(armDisplay, massDisplay)
+                            if (armDisplay  < minArm)  minArm  = armDisplay
+                            if (armDisplay  > maxArm)  maxArm  = armDisplay
+                            if (massDisplay < minMass) minMass = massDisplay
+                            if (massDisplay > maxMass) maxMass = massDisplay
+                            hasPoints = true
+                        }
+                        if (hasPoints) {
+                            // Close the envelope polygon by repeating the first point
+                            if (envelopeSeries.count > 1) {
+                                var fp = envelopeSeries.at(0)
+                                envelopeSeries.append(fp.x, fp.y)
+                            }
+                            var armPad  = (maxArm  - minArm)  * 0.1 || 1
+                            var massPad = (maxMass - minMass) * 0.1 || 1
+                            axisArm.min  = minArm  - armPad
+                            axisArm.max  = maxArm  + armPad
+                            axisMass.min = minMass - massPad
+                            axisMass.max = maxMass + massPad
                         }
                     }
                 }

@@ -362,6 +362,7 @@ qt_add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
     Qt6::Bluetooth
+    Qt6::Charts
     Qt6::Concurrent
     Qt6::Core
     Qt6::Core5Compat
@@ -580,6 +581,7 @@ qt_add_qml_module(${PROJECT_NAME}
     VERSION 1.0
     NO_RESOURCE_TARGET_PATH
     DEPENDENCIES
+    QtCharts
     QtPositioning
     QtQuick
     QML_FILES
