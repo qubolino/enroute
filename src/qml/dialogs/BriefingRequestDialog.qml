@@ -32,7 +32,8 @@ CenteringDialog {
     modal: true
     standardButtons: DialogButtonBox.Close
 
-    // Persisted form fields
+    property bool showResult: false
+
     Settings {
         id: settings
         category: "BriefingRequest"
@@ -42,35 +43,41 @@ CenteringDialog {
         property string usableFuelL: ""
     }
 
-    // Switch to result view when report arrives
     Connections {
         target: BriefingProvider
-        function onResultChanged() {
-            stackView.push(resultPage)
-        }
+        function onResultChanged() { dlg.showResult = true }
         function onStatusChanged() {
             if (BriefingProvider.status === BriefingProvider.Error)
                 errorLabel.visible = true
         }
     }
 
-    StackView {
-        id: stackView
-        anchors.fill: parent
-        initialItem: formPage
+    onOpened: {
+        showResult = false
+        errorLabel.visible = false
     }
 
-    // ── Form page ────────────────────────────────────────────────────────────
-    Component {
-        id: formPage
+    // CenteringDialog sizes from implicitHeight — follow LongTextDialogMD pattern
+    DecoratedScrollView {
+        anchors.fill: parent
+        contentWidth: availableWidth
 
-        Item {
+        Binding on implicitHeight {
+            value: content.implicitHeight
+            delayed: true
+        }
+
+        ColumnLayout {
+            id: content
+            width: parent.width
+            spacing: 8
+
+            // ── Form ─────────────────────────────────────────────────────────
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 4
+                visible: !dlg.showResult
+                Layout.fillWidth: true
                 spacing: 8
 
-                // Usable fuel
                 Label { text: qsTr("Usable fuel at departure (L)") }
                 MyTextField {
                     id: usableFuelField
@@ -82,7 +89,6 @@ CenteringDialog {
                     onTextChanged: settings.usableFuelL = text
                 }
 
-                // Alternate
                 Label { text: qsTr("Alternate (optional ICAO)") }
                 MyTextField {
                     id: alternateField
@@ -94,7 +100,6 @@ CenteringDialog {
                     onTextChanged: settings.alternate = text.toUpperCase()
                 }
 
-                // LLM Provider
                 Label { text: qsTr("LLM provider") }
                 ComboBox {
                     id: providerCombo
@@ -108,7 +113,6 @@ CenteringDialog {
                     Component.onCompleted: BriefingProvider.llmProvider = currentValue
                 }
 
-                // TEMSI token
                 Label { text: qsTr("TEMSI token (optional)") }
                 MyTextField {
                     id: temsiField
@@ -118,7 +122,6 @@ CenteringDialog {
                     onTextChanged: settings.temsiToken = text
                 }
 
-                // Error
                 Label {
                     id: errorLabel
                     Layout.fillWidth: true
@@ -128,7 +131,6 @@ CenteringDialog {
                     text: BriefingProvider.errorMessage
                 }
 
-                // Submit row
                 RowLayout {
                     Layout.fillWidth: true
                     BusyIndicator {
@@ -151,145 +153,91 @@ CenteringDialog {
                     }
                 }
             }
-        }
-    }
 
-    // ── Result page ──────────────────────────────────────────────────────────
-    Component {
-        id: resultPage
-
-        Item {
-            // Back button at the top
+            // ── Result ───────────────────────────────────────────────────────
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 4
-                spacing: 0
+                visible: dlg.showResult
+                Layout.fillWidth: true
+                spacing: 8
 
                 Button {
                     text: qsTr("← New Request")
                     flat: true
                     onClicked: {
                         PlatformAdaptor.vibrateBrief()
-                        stackView.pop()
+                        dlg.showResult = false
+                        errorLabel.visible = false
                     }
                 }
 
-                // Margins quick-glance strip
+                // Margins strip
                 Rectangle {
                     Layout.fillWidth: true
-                    height: marginsRow.implicitHeight + 12
-                    color: {
-                        if (isNaN(BriefingProvider.marginL)) return "transparent"
-                        return BriefingProvider.marginL >= 0 ? "#1a7f1a" : "#c0392b"
-                    }
+                    implicitHeight: marginsRow.implicitHeight + 16
+                    color: isNaN(BriefingProvider.marginL) ? "#444444"
+                           : (BriefingProvider.marginL >= 0 ? "#1a7f1a" : "#c0392b")
                     radius: 4
 
                     Row {
                         id: marginsRow
                         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                        anchors.margins: 8
-                        spacing: 16
+                        anchors.margins: 10
+                        spacing: 20
 
-                        // Fuel margin
                         Column {
                             spacing: 2
+                            Label { text: qsTr("Fuel margin"); font.pixelSize: 10; color: "white"; opacity: 0.85 }
                             Label {
-                                text: qsTr("Fuel margin")
-                                font.pixelSize: 10
-                                color: "white"
-                                opacity: 0.8
-                            }
-                            Label {
-                                text: {
-                                    if (isNaN(BriefingProvider.marginL)) return "–"
-                                    const m = BriefingProvider.marginL
-                                    const sign = m >= 0 ? "+" : ""
-                                    return sign + m.toFixed(0) + " L"
-                                }
-                                font.bold: true
-                                color: "white"
+                                font.bold: true; color: "white"
+                                text: isNaN(BriefingProvider.marginL) ? "–"
+                                      : (BriefingProvider.marginL >= 0 ? "+" : "")
+                                        + BriefingProvider.marginL.toFixed(0) + " L"
                             }
                         }
 
-                        // Endurance at destination
                         Column {
                             spacing: 2
+                            Label { text: qsTr("Endurance@dest"); font.pixelSize: 10; color: "white"; opacity: 0.85 }
                             Label {
-                                text: qsTr("Endurance@dest")
-                                font.pixelSize: 10
-                                color: "white"
-                                opacity: 0.8
-                            }
-                            Label {
-                                text: {
-                                    if (isNaN(BriefingProvider.enduranceAtDestMin)) return "–"
-                                    return BriefingProvider.enduranceAtDestMin.toFixed(0) + " min"
-                                }
-                                font.bold: true
-                                color: "white"
+                                font.bold: true; color: "white"
+                                text: isNaN(BriefingProvider.enduranceAtDestMin) ? "–"
+                                      : BriefingProvider.enduranceAtDestMin.toFixed(0) + " min"
                             }
                         }
 
-                        // ETA vs sunset
                         Column {
                             spacing: 2
                             visible: !isNaN(BriefingProvider.etaVsSunsetMin)
+                            Label { text: qsTr("Before sunset"); font.pixelSize: 10; color: "white"; opacity: 0.85 }
                             Label {
-                                text: qsTr("Before sunset")
-                                font.pixelSize: 10
-                                color: "white"
-                                opacity: 0.8
-                            }
-                            Label {
-                                text: {
-                                    if (isNaN(BriefingProvider.etaVsSunsetMin)) return "–"
-                                    return BriefingProvider.etaVsSunsetMin.toFixed(0) + " min"
-                                }
-                                font.bold: true
-                                color: "white"
+                                font.bold: true; color: "white"
+                                text: isNaN(BriefingProvider.etaVsSunsetMin) ? "–"
+                                      : BriefingProvider.etaVsSunsetMin.toFixed(0) + " min"
                             }
                         }
                     }
                 }
 
-                // Scrollable content: markdown report + TEMSI chart
-                DecoratedScrollView {
+                // Markdown report
+                Label {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    contentWidth: availableWidth
+                    text: BriefingProvider.report
+                    textFormat: Text.MarkdownText
+                    wrapMode: Text.Wrap
+                    onLinkActivated: Qt.openUrlExternally(link)
+                }
 
-                    ColumnLayout {
-                        width: parent.width
-                        spacing: 12
-
-                        // Markdown report
-                        Label {
-                            Layout.fillWidth: true
-                            text: BriefingProvider.report
-                            textFormat: Text.MarkdownText
-                            wrapMode: Text.Wrap
-                            onLinkActivated: Qt.openUrlExternally(link)
-                        }
-
-                        // TEMSI chart (only when chart_data is present)
-                        Image {
-                            Layout.fillWidth: true
-                            visible: BriefingProvider.chartData !== ""
-                            source: BriefingProvider.chartData !== ""
-                                    ? "data:image/png;base64," + BriefingProvider.chartData
-                                    : ""
-                            fillMode: Image.PreserveAspectFit
-                            smooth: true
-                        }
-                    }
+                // TEMSI chart
+                Image {
+                    Layout.fillWidth: true
+                    visible: BriefingProvider.chartData !== ""
+                    source: BriefingProvider.chartData !== ""
+                            ? "data:image/png;base64," + BriefingProvider.chartData
+                            : ""
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
                 }
             }
         }
-    }
-
-    // Reset to form when dialog is opened
-    onOpened: {
-        if (stackView.depth > 1)
-            stackView.pop(null, StackView.Immediate)
     }
 }
