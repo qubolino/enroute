@@ -64,14 +64,6 @@ void Navigation::Aircraft::setFuelConsumption(Units::VolumeFlow newFuelConsumpti
 }
 
 
-void Navigation::Aircraft::setUsableFuel(Units::Volume newFuel)
-{
-    if (newFuel.toL() <= 0.0 || newFuel > maxValidUsableFuel) {
-        newFuel = Units::Volume();
-    }
-    m_usableFuel = newFuel;
-}
-
 void Navigation::Aircraft::setFuelConsumptionUnit(FuelConsumptionUnit newUnit)
 {
     m_fuelConsumptionUnit = newUnit;
@@ -250,7 +242,6 @@ QString Navigation::Aircraft::loadFromJSON(const QByteArray &JSON)
     setMinimumSpeed( Units::Speed::fromMPS( content[QStringLiteral("minimumSpeed_mps")].toDouble(NAN) ));
     setName( content[QStringLiteral("name")].toString() );
     setTransponderCode( content[QStringLiteral("transponderCode")].toString() );
-    setUsableFuel( Units::Volume::fromL( content[QStringLiteral("usableFuel_l")].toDouble(NAN) ));
     setVerticalDistanceUnit( static_cast<VerticalDistanceUnit>(content[QStringLiteral("verticalDistanceUnit")].toInt(Feet)) );
 
     return {};
@@ -293,7 +284,6 @@ QByteArray Navigation::Aircraft::toJSON() const
     jsonObj.insert(QStringLiteral("minimumSpeed_mps"), m_minimumSpeed.toMPS());
     jsonObj.insert(QStringLiteral("name"), m_name);
     jsonObj.insert(QStringLiteral("transponderCode"), m_transponderCode);
-    jsonObj.insert(QStringLiteral("usableFuel_l"), m_usableFuel.toL());
     jsonObj.insert(QStringLiteral("verticalDistanceUnit"), m_verticalDistanceUnit);
 
     QJsonDocument doc;

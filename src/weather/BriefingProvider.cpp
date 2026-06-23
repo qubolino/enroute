@@ -76,7 +76,7 @@ void Weather::BriefingProvider::setStatus(Status s, const QString& error)
     emit statusChanged();
 }
 
-void Weather::BriefingProvider::requestBriefing(const QString& alternate, const QString& temsiToken)
+void Weather::BriefingProvider::requestBriefing(const QString& alternate, double usableFuelL, const QString& temsiToken)
 {
     if (m_status == Status::Loading) return;
 
@@ -101,9 +101,9 @@ void Weather::BriefingProvider::requestBriefing(const QString& alternate, const 
         return;
     }
 
-    // Validate aircraft data
-    if (!aircraft.usableFuel().isFinite() || aircraft.usableFuel().toL() <= 0.0) {
-        setStatus(Status::Error, tr("Usable fuel at departure is not set in the aircraft profile."));
+    // Validate fuel
+    if (usableFuelL <= 0.0 || qIsNaN(usableFuelL)) {
+        setStatus(Status::Error, tr("Usable fuel at departure must be greater than zero."));
         return;
     }
 
@@ -113,7 +113,7 @@ void Weather::BriefingProvider::requestBriefing(const QString& alternate, const 
                                                 ? aircraft.cruiseSpeed().toKN() : 0.0;
     aircraftObj[u"fuel_flow_lph"_s]      = aircraft.fuelConsumption().isFinite()
                                                 ? aircraft.fuelConsumption().toLPH() : 0.0;
-    aircraftObj[u"usable_fuel_liters"_s] = aircraft.usableFuel().toL();
+    aircraftObj[u"usable_fuel_liters"_s] = usableFuelL;
     if (!aircraft.name().isEmpty())
         aircraftObj[u"registration"_s]   = aircraft.name();
     if (aircraft.cruiseAltitude().isFinite())

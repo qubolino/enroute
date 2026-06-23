@@ -77,7 +77,7 @@ public:
      *  @param alternate  ICAO code of alternate aerodrome, or empty string.
      *  @param temsiToken Aeroweb login= token, or empty string.
      */
-    Q_INVOKABLE void requestBriefing(const QString& alternate, const QString& temsiToken);
+    Q_INVOKABLE void requestBriefing(const QString& alternate, double usableFuelL, const QString& temsiToken);
 
 signals:
     void statusChanged();

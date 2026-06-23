@@ -20,7 +20,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Settings
+import Qt.labs.settings
 
 import akaflieg_freiburg.enroute
 import "../items"
@@ -39,6 +39,7 @@ CenteringDialog {
         property string alternate:   ""
         property string temsiToken:  ""
         property int    providerIdx: 0
+        property string usableFuelL: ""
     }
 
     // Open the result dialog when report arrives
@@ -57,6 +58,18 @@ CenteringDialog {
     ColumnLayout {
         anchors.fill: parent
         spacing: 8
+
+        // Usable fuel
+        Label { text: qsTr("Usable fuel at departure (L)") }
+        MyTextField {
+            id: usableFuelField
+            Layout.fillWidth: true
+            placeholderText: "120"
+            text: settings.usableFuelL
+            inputMethodHints: Qt.ImhDigitsOnly
+            validator: DoubleValidator { bottom: 0; top: 9999; decimals: 1 }
+            onTextChanged: settings.usableFuelL = text
+        }
 
         // Alternate
         Label { text: qsTr("Alternate (optional ICAO)") }
@@ -123,6 +136,7 @@ CenteringDialog {
                     errorLabel.visible = false
                     BriefingProvider.requestBriefing(
                         alternateField.text.toUpperCase(),
+                        parseFloat(usableFuelField.text) || 0.0,
                         temsiField.text
                     )
                 }
@@ -132,6 +146,7 @@ CenteringDialog {
 
     onOpened: {
         errorLabel.visible = false
+        usableFuelField.text = settings.usableFuelL
         alternateField.text = settings.alternate
         temsiField.text = settings.temsiToken
         providerCombo.currentIndex = settings.providerIdx

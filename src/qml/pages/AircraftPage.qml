@@ -36,7 +36,6 @@ Page {
 
     // Static objects, used to call static functions
     property speed staticSpeed
-    property volume staticVolume
     property volumeFlow staticVolumeFlow
 
     header: PageHeader {
@@ -658,48 +657,6 @@ Page {
                         return "gal/h";
                     }
                 }
-            }
-            Item { }
-
-            // Usable Fuel
-            Label {
-                text: qsTr("Usable Fuel")
-                Layout.columnSpan: 4
-                Layout.topMargin: font.pixelSize
-                font.pixelSize: acftTab.font.pixelSize*1.2
-                font.bold: true
-            }
-
-            Label {
-                text: qsTr("At departure")
-                Layout.alignment: Qt.AlignBaseline
-            }
-            MyTextField {
-                id: usableFuel
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignBaseline
-                Layout.minimumWidth: font.pixelSize*5
-
-                validator: DoubleValidator {
-                    bottom: 0
-                    top: 2000
-                    notation: DoubleValidator.StandardNotation
-                }
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onEditingFinished: {
-                    Navigator.aircraft.usableFuel = aircraftPage.staticVolume.fromL(Number.fromLocaleString(Qt.locale(), text))
-                }
-                color: (acceptableInput ? colorGlean.color : "red")
-                text: {
-                    if (!Navigator.aircraft.usableFuel.isFinite()) {
-                        return ""
-                    }
-                    return Navigator.aircraft.usableFuel.toL().toLocaleString(Qt.locale(), 'f', 1)
-                }
-            }
-            Label {
-                Layout.alignment: Qt.AlignBaseline
-                text: "l"
             }
             Item { }
 
