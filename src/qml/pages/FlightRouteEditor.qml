@@ -497,6 +497,17 @@ Page {
                     }
                 }
 
+                MenuItem {
+                    text: qsTr("Analyze Route…")
+                    enabled: Navigator.flightRoute.size >= 2 && (sv.currentIndex === 0)
+
+                    onTriggered: {
+                        PlatformAdaptor.vibrateBrief()
+                        highlighted = false
+                        briefingRequestDialog.open()
+                    }
+                }
+
                 MenuSeparator { }
 
                 MenuItem {
@@ -997,6 +1008,8 @@ Page {
         }
 
     }
+
+    BriefingRequestDialog { id: briefingRequestDialog }
 
     LongTextDialog {
         id: clearDialog

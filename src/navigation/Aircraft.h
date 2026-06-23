@@ -115,6 +115,13 @@ public:
     /*! \brief Preferred units of measurement for fuel consumption */
     Q_PROPERTY(FuelConsumptionUnit fuelConsumptionUnit READ fuelConsumptionUnit WRITE setFuelConsumptionUnit)
 
+    /*! \brief Usable fuel at departure
+     *
+     * This property holds the total usable fuel on board at departure,
+     * in litres. NaN if not set.
+     */
+    Q_PROPERTY(Units::Volume usableFuel READ usableFuel WRITE setUsableFuel)
+
     /*! \brief Preferred units of measurement for horizontal distances */
     Q_PROPERTY(HorizontalDistanceUnit horizontalDistanceUnit READ horizontalDistanceUnit WRITE setHorizontalDistanceUnit)
 
@@ -202,6 +209,12 @@ public:
 
     /*! \brief Getter function for property of the same name
      *
+     * @returns Usable fuel at departure (NaN if not set)
+     */
+    [[nodiscard]] Units::Volume usableFuel() const { return m_usableFuel; }
+
+    /*! \brief Getter function for property of the same name
+     *
      * @returns Property preferredHorizontalDistanceUnit
      */
     [[nodiscard]] HorizontalDistanceUnit horizontalDistanceUnit() const { return m_horizontalDistanceUnit; }
@@ -280,6 +293,12 @@ public:
      * @param newUnit Property preferredFuelConsumptionUnit
      */
     void setFuelConsumptionUnit(FuelConsumptionUnit newUnit);
+
+    /*! \brief Setter function for property of the same name
+     *
+     * @param newFuel Usable fuel at departure in litres (clamped to [0, 2000])
+     */
+    void setUsableFuel(Units::Volume newFuel);
 
     /*! \brief Setter function for property of the same name
      *
@@ -448,6 +467,7 @@ private:
     static constexpr Units::Speed maxValidSpeed = Units::Speed::fromKN(400.0);
     static constexpr Units::VolumeFlow minValidFuelConsumption = Units::VolumeFlow::fromLPH(0.0);
     static constexpr Units::VolumeFlow maxValidFuelConsumption = Units::VolumeFlow::fromLPH(300.0);
+    static constexpr Units::Volume maxValidUsableFuel = Units::Volume::fromL(2000.0);
 
     bool m_cabinPressureEqualsStaticPressure {false};
     Units::Distance m_cruiseAltitude {};
@@ -455,6 +475,7 @@ private:
     Units::Speed m_descentSpeed {};
     Units::VolumeFlow m_fuelConsumption {};
     FuelConsumptionUnit m_fuelConsumptionUnit {LiterPerHour};
+    Units::Volume m_usableFuel {};
     HorizontalDistanceUnit m_horizontalDistanceUnit {NauticalMile};
     Units::Speed m_minimumSpeed {};
     QString m_name;

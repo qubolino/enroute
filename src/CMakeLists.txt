@@ -132,6 +132,7 @@ set(SOURCES
     weather/TAF.h
     weather/WeatherDataProvider.h
     weather/Wind.h
+    weather/BriefingProvider.h
     weather/WindFieldProvider.h
 
     # C++ files
@@ -231,6 +232,7 @@ set(SOURCES
     units/VolumeFlow.cpp
     weather/Decoder.cpp
     weather/DensityAltitude.cpp
+    weather/BriefingProvider.cpp
     weather/ForecastMapProvider.cpp
     weather/METAR.cpp
     weather/Observer.cpp
@@ -593,6 +595,7 @@ qt_add_qml_module(${PROJECT_NAME}
     qml/dialogs/ConnectionInfo.qml
     qml/dialogs/LongTextDialog.qml
     qml/dialogs/AircraftSaveDialog.qml
+    qml/dialogs/BriefingRequestDialog.qml
     qml/dialogs/ErrorDialog.qml
     qml/dialogs/FirstRunDialog.qml
     qml/dialogs/FlightRouteSaveDialog.qml

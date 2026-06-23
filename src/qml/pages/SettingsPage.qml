@@ -436,6 +436,41 @@ Page {
                 Layout.preferredHeight: 3
             }
 
+            Item { // Spacer
+                Layout.columnSpan: 2
+                Layout.preferredHeight: 3
+            }
+
+            Label {
+                Layout.leftMargin: settingsPage.font.pixelSize
+                Layout.columnSpan: 2
+                text: qsTr("Preflight Briefing")
+                font.pixelSize: settingsPage.font.pixelSize*1.2
+                font.bold: true
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: settingsPage.font.pixelSize
+                spacing: 4
+
+                Label {
+                    text: qsTr("Server URL")
+                    font.pixelSize: settingsPage.font.pixelSize
+                }
+                TextField {
+                    id: briefingServerUrlField
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 0
+                    placeholderText: "http://192.168.1.x:8080"
+                    text: BriefingProvider.serverUrl
+                    inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
+                    onEditingFinished: BriefingProvider.serverUrl = text.trim()
+                }
+            }
+
+            Item { Layout.columnSpan: 2; Layout.preferredHeight: 1 }
+
             Label {
                 Layout.leftMargin: settingsPage.font.pixelSize
                 Layout.columnSpan: 2
