@@ -230,6 +230,7 @@ CenteringDialog {
                 // TEMSI chart
                 Image {
                     Layout.fillWidth: true
+                    height: implicitHeight
                     visible: BriefingProvider.chartUrl.toString() !== ""
                     source: BriefingProvider.chartUrl
                     fillMode: Image.PreserveAspectFit
