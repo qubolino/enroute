@@ -26,7 +26,7 @@
 namespace Weather {
 
 /*! \brief Posts a flight plan + aircraft profile to the preflight briefing server
- *  and exposes the returned markdown report to QML.
+ *  and exposes the returned markdown report, margins summary, and TEMSI chart to QML.
  */
 class BriefingProvider : public QObject {
     Q_OBJECT
@@ -45,24 +45,42 @@ public:
     // Properties
     //
 
-    Q_PROPERTY(Status status READ status NOTIFY statusChanged)
-    Q_PROPERTY(QString report READ report NOTIFY reportChanged)
+    Q_PROPERTY(Status  status       READ status       NOTIFY statusChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY statusChanged)
-    Q_PROPERTY(QString serverUrl READ serverUrl WRITE setServerUrl NOTIFY serverUrlChanged)
+
+    // Settings
+    Q_PROPERTY(QString serverUrl  READ serverUrl  WRITE setServerUrl  NOTIFY serverUrlChanged)
     Q_PROPERTY(QString llmProvider READ llmProvider WRITE setLlmProvider NOTIFY llmProviderChanged)
+
+    // Result — all populated together when a request succeeds
+    Q_PROPERTY(QString report     READ report     NOTIFY resultChanged)
+    Q_PROPERTY(QString chartData  READ chartData  NOTIFY resultChanged)   // base64 PNG, "" if none
+
+    // Margins (from data.margins) — NaN when not available
+    Q_PROPERTY(double fuelAtDestinationL    READ fuelAtDestinationL    NOTIFY resultChanged)
+    Q_PROPERTY(double legalReserveL         READ legalReserveL         NOTIFY resultChanged)
+    Q_PROPERTY(double marginL               READ marginL               NOTIFY resultChanged)
+    Q_PROPERTY(double enduranceAtDestMin    READ enduranceAtDestMin    NOTIFY resultChanged)
+    Q_PROPERTY(double etaVsSunsetMin        READ etaVsSunsetMin        NOTIFY resultChanged)  // NaN if unavailable
 
     //
     // Getters
     //
 
-    [[nodiscard]] Status status() const { return m_status; }
-    [[nodiscard]] QString report() const { return m_report; }
+    [[nodiscard]] Status  status()       const { return m_status; }
     [[nodiscard]] QString errorMessage() const { return m_errorMessage; }
-    [[nodiscard]] QString serverUrl() const { return m_serverUrl; }
-    [[nodiscard]] QString llmProvider() const { return m_llmProvider; }
+    [[nodiscard]] QString serverUrl()    const { return m_serverUrl; }
+    [[nodiscard]] QString llmProvider()  const { return m_llmProvider; }
+    [[nodiscard]] QString report()       const { return m_report; }
+    [[nodiscard]] QString chartData()    const { return m_chartData; }
+    [[nodiscard]] double  fuelAtDestinationL()  const { return m_fuelAtDestinationL; }
+    [[nodiscard]] double  legalReserveL()       const { return m_legalReserveL; }
+    [[nodiscard]] double  marginL()             const { return m_marginL; }
+    [[nodiscard]] double  enduranceAtDestMin()  const { return m_enduranceAtDestMin; }
+    [[nodiscard]] double  etaVsSunsetMin()      const { return m_etaVsSunsetMin; }
 
     //
-    // Setters
+    // Setters / invokables
     //
 
     void setServerUrl(const QString& url);
@@ -70,30 +88,42 @@ public:
 
     /*! \brief POST a briefing request to the server.
      *
-     *  Reads the current route and aircraft from Navigator. Sets status to
-     *  Loading immediately; emits reportChanged on success or statusChanged
-     *  (with Error) on failure.
+     *  Reads the current route from Navigator and builds a `waypoints[]` request
+     *  (name + lat/lon/alt_m per waypoint). Falls back to the legacy `route[]` array
+     *  only when every waypoint is an ICAO airport.
      *
-     *  @param alternate  ICAO code of alternate aerodrome, or empty string.
-     *  @param temsiToken Aeroweb login= token, or empty string.
+     *  @param alternate    ICAO code of alternate aerodrome, or empty string.
+     *  @param usableFuelL  Usable fuel at departure in litres.
+     *  @param temsiToken   Aeroweb login= token, or empty string.
      */
-    Q_INVOKABLE void requestBriefing(const QString& alternate, double usableFuelL, const QString& temsiToken);
+    Q_INVOKABLE void requestBriefing(const QString& alternate,
+                                     double usableFuelL,
+                                     const QString& temsiToken);
 
 signals:
     void statusChanged();
-    void reportChanged();
+    void resultChanged();
     void serverUrlChanged();
     void llmProviderChanged();
 
 private:
     void setStatus(Status s, const QString& error = {});
+    void clearResult();
 
     QNetworkAccessManager m_nam;
-    Status  m_status       {Status::Idle};
-    QString m_report;
+    Status  m_status        {Status::Idle};
     QString m_errorMessage;
     QString m_serverUrl;
-    QString m_llmProvider  {QStringLiteral("anthropic")};
+    QString m_llmProvider   {QStringLiteral("anthropic")};
+
+    // Result fields
+    QString m_report;
+    QString m_chartData;
+    double  m_fuelAtDestinationL {qQNaN()};
+    double  m_legalReserveL      {qQNaN()};
+    double  m_marginL            {qQNaN()};
+    double  m_enduranceAtDestMin {qQNaN()};
+    double  m_etaVsSunsetMin     {qQNaN()};
 };
 
 } // namespace Weather
