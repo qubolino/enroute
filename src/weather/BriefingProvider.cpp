@@ -24,10 +24,12 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QDir>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSettings>
 #include <cmath>
+#include <cstdlib>
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -78,7 +80,8 @@ void Weather::BriefingProvider::setStatus(Status s, const QString& error)
 void Weather::BriefingProvider::clearResult()
 {
     m_report.clear();
-    m_chartData.clear();
+    m_chartUrl.clear();
+    m_chartTempFile.remove();
     m_fuelAtDestinationL = qQNaN();
     m_legalReserveL      = qQNaN();
     m_marginL            = qQNaN();
@@ -193,8 +196,22 @@ void Weather::BriefingProvider::requestBriefing(const QString& alternate,
             setStatus(Status::Error, tr("Server returned an empty report."));
             return;
         }
-        m_report    = report;
-        m_chartData = root[u"chart_data"_s].toString(); // "" when null/absent
+        m_report = report;
+
+        // Decode chart PNG and write to a temp file so QML Image can load it
+        const QString chartBase64 = root[u"chart_data"_s].toString();
+        m_chartUrl.clear();
+        m_chartTempFile.remove();
+        if (!chartBase64.isEmpty()) {
+            const QByteArray pngData = QByteArray::fromBase64(chartBase64.toLatin1());
+            m_chartTempFile.setFileTemplate(QDir::tempPath() + u"/enroute_chart_XXXXXX.png"_s);
+            if (m_chartTempFile.open()) {
+                m_chartTempFile.write(pngData);
+                m_chartTempFile.flush();
+                m_chartUrl = QUrl::fromLocalFile(m_chartTempFile.fileName());
+                m_chartTempFile.close();
+            }
+        }
 
         // Parse margins
         const QJsonObject margins = root[u"data"_s][u"margins"_s].toObject();

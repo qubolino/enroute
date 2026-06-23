@@ -230,10 +230,8 @@ CenteringDialog {
                 // TEMSI chart
                 Image {
                     Layout.fillWidth: true
-                    visible: BriefingProvider.chartData !== ""
-                    source: BriefingProvider.chartData !== ""
-                            ? "data:image/png;base64," + BriefingProvider.chartData
-                            : ""
+                    visible: BriefingProvider.chartUrl.toString() !== ""
+                    source: BriefingProvider.chartUrl
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                 }

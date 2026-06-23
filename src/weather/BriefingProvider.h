@@ -22,6 +22,8 @@
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QQmlEngine>
+#include <QTemporaryFile>
+#include <QUrl>
 
 namespace Weather {
 
@@ -53,8 +55,8 @@ public:
     Q_PROPERTY(QString llmProvider READ llmProvider WRITE setLlmProvider NOTIFY llmProviderChanged)
 
     // Result — all populated together when a request succeeds
-    Q_PROPERTY(QString report     READ report     NOTIFY resultChanged)
-    Q_PROPERTY(QString chartData  READ chartData  NOTIFY resultChanged)   // base64 PNG, "" if none
+    Q_PROPERTY(QString report    READ report    NOTIFY resultChanged)
+    Q_PROPERTY(QUrl    chartUrl  READ chartUrl  NOTIFY resultChanged)  // file:// URL, empty if none
 
     // Margins (from data.margins) — NaN when not available
     Q_PROPERTY(double fuelAtDestinationL    READ fuelAtDestinationL    NOTIFY resultChanged)
@@ -71,8 +73,8 @@ public:
     [[nodiscard]] QString errorMessage() const { return m_errorMessage; }
     [[nodiscard]] QString serverUrl()    const { return m_serverUrl; }
     [[nodiscard]] QString llmProvider()  const { return m_llmProvider; }
-    [[nodiscard]] QString report()       const { return m_report; }
-    [[nodiscard]] QString chartData()    const { return m_chartData; }
+    [[nodiscard]] QString report()    const { return m_report; }
+    [[nodiscard]] QUrl    chartUrl()  const { return m_chartUrl; }
     [[nodiscard]] double  fuelAtDestinationL()  const { return m_fuelAtDestinationL; }
     [[nodiscard]] double  legalReserveL()       const { return m_legalReserveL; }
     [[nodiscard]] double  marginL()             const { return m_marginL; }
@@ -117,8 +119,9 @@ private:
     QString m_llmProvider   {QStringLiteral("anthropic")};
 
     // Result fields
-    QString m_report;
-    QString m_chartData;
+    QString        m_report;
+    QUrl           m_chartUrl;
+    QTemporaryFile m_chartTempFile;
     double  m_fuelAtDestinationL {qQNaN()};
     double  m_legalReserveL      {qQNaN()};
     double  m_marginL            {qQNaN()};
