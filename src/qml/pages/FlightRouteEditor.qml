@@ -24,6 +24,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import Qt.labs.settings
 
 import akaflieg_freiburg.enroute
 import "../dialogs"
@@ -32,6 +33,15 @@ import "../items"
 Page {
     id: flightRoutePage
     title: qsTr("Route and Wind")
+
+    Settings {
+        id: briefingSettings
+        category: "BriefingRequest"
+        property string alternate:   ""
+        property string temsiToken:  ""
+        property int    providerIdx: 0
+        property string usableFuelL: ""
+    }
 
     property bool isIos: Qt.platform.os === "ios"
     property bool isAndroid: Qt.platform.os === "android"
@@ -497,17 +507,6 @@ Page {
                     }
                 }
 
-                MenuItem {
-                    text: qsTr("Analyze Route…")
-                    enabled: Navigator.flightRoute.size >= 2 && (sv.currentIndex === 0)
-
-                    onTriggered: {
-                        PlatformAdaptor.vibrateBrief()
-                        highlighted = false
-                        briefingRequestDialog.open()
-                    }
-                }
-
                 MenuSeparator { }
 
                 MenuItem {
@@ -553,6 +552,7 @@ Page {
         currentIndex: sv.currentIndex
         TabButton { text: qsTr("Route") }
         TabButton { text: qsTr("Wind") }
+        TabButton { text: qsTr("Briefing") }
     }
 
     SwipeView{
@@ -813,6 +813,207 @@ Page {
 
         }
 
+        // ── Briefing tab ─────────────────────────────────────────────────────
+        DecoratedScrollView {
+            id: briefingTab
+            contentWidth: width
+            clip: true
+
+            property bool showResult: false
+
+            Connections {
+                target: BriefingProvider
+                function onResultChanged()  { briefingTab.showResult = true }
+                function onStatusChanged()  {
+                    if (BriefingProvider.status === BriefingProvider.Error)
+                        briefingErrorLabel.visible = true
+                }
+            }
+
+            ColumnLayout {
+                anchors.left:  parent.left
+                anchors.right: parent.right
+                anchors.leftMargin:  font.pixelSize
+                anchors.rightMargin: font.pixelSize
+                spacing: 8
+
+                Label { Layout.preferredHeight: font.pixelSize }  // top spacer
+
+                // ── Form ────────────────────────────────────────────────────
+                ColumnLayout {
+                    visible: !briefingTab.showResult
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Label {
+                        text: qsTr("Briefing")
+                        font.pixelSize: briefingTab.font.pixelSize * 1.2
+                        font.bold: true
+                    }
+
+                    Label { text: qsTr("Usable fuel at departure (L)") }
+                    MyTextField {
+                        id: briefingFuelField
+                        Layout.fillWidth: true
+                        placeholderText: "120"
+                        text: briefingSettings.usableFuelL
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        validator: DoubleValidator { bottom: 0; top: 9999; decimals: 1 }
+                        onTextChanged: briefingSettings.usableFuelL = text
+                    }
+
+                    Label { text: qsTr("Alternate (optional ICAO)") }
+                    MyTextField {
+                        id: briefingAlternate
+                        Layout.fillWidth: true
+                        placeholderText: "LFBD"
+                        text: briefingSettings.alternate
+                        inputMethodHints: Qt.ImhUppercaseOnly
+                        maximumLength: 4
+                        onTextChanged: briefingSettings.alternate = text.toUpperCase()
+                    }
+
+                    Label { text: qsTr("LLM provider") }
+                    ComboBox {
+                        id: briefingProviderCombo
+                        Layout.fillWidth: true
+                        model: ["anthropic", "mistral", "ollama"]
+                        currentIndex: briefingSettings.providerIdx
+                        onCurrentIndexChanged: {
+                            briefingSettings.providerIdx = currentIndex
+                            BriefingProvider.llmProvider = currentValue
+                        }
+                        Component.onCompleted: BriefingProvider.llmProvider = currentValue
+                    }
+
+                    Label { text: qsTr("TEMSI token (optional)") }
+                    MyTextField {
+                        id: briefingTemsiToken
+                        Layout.fillWidth: true
+                        placeholderText: qsTr("Aeroweb login= token")
+                        text: briefingSettings.temsiToken
+                        onTextChanged: briefingSettings.temsiToken = text
+                    }
+
+                    Label {
+                        id: briefingErrorLabel
+                        Layout.fillWidth: true
+                        visible: false
+                        color: "red"
+                        wrapMode: Text.Wrap
+                        text: BriefingProvider.errorMessage
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        BusyIndicator {
+                            visible: BriefingProvider.status === BriefingProvider.Loading
+                            running: visible
+                        }
+                        Button {
+                            Layout.fillWidth: true
+                            text: qsTr("Request Briefing")
+                            enabled: BriefingProvider.status !== BriefingProvider.Loading
+                                     && Navigator.flightRoute.size >= 2
+                            onClicked: {
+                                PlatformAdaptor.vibrateBrief()
+                                briefingErrorLabel.visible = false
+                                BriefingProvider.requestBriefing(
+                                    briefingAlternate.text.toUpperCase(),
+                                    parseFloat(briefingFuelField.text) || 0.0,
+                                    briefingTemsiToken.text
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── Result ──────────────────────────────────────────────────
+                ColumnLayout {
+                    visible: briefingTab.showResult
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Button {
+                        text: qsTr("← New Request")
+                        flat: true
+                        onClicked: {
+                            PlatformAdaptor.vibrateBrief()
+                            briefingTab.showResult = false
+                            briefingErrorLabel.visible = false
+                        }
+                    }
+
+                    // Margins strip
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: briefingMarginsRow.implicitHeight + 16
+                        color: isNaN(BriefingProvider.marginL) ? "#444444"
+                               : (BriefingProvider.marginL >= 0 ? "#1a7f1a" : "#c0392b")
+                        radius: 4
+
+                        Row {
+                            id: briefingMarginsRow
+                            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                            anchors.margins: 10
+                            spacing: 20
+
+                            Column {
+                                spacing: 2
+                                Label { text: qsTr("Fuel margin"); font.pixelSize: 10; color: "white"; opacity: 0.85 }
+                                Label {
+                                    font.bold: true; color: "white"
+                                    text: isNaN(BriefingProvider.marginL) ? "–"
+                                          : (BriefingProvider.marginL >= 0 ? "+" : "")
+                                            + BriefingProvider.marginL.toFixed(0) + " L"
+                                }
+                            }
+                            Column {
+                                spacing: 2
+                                Label { text: qsTr("Endurance@dest"); font.pixelSize: 10; color: "white"; opacity: 0.85 }
+                                Label {
+                                    font.bold: true; color: "white"
+                                    text: isNaN(BriefingProvider.enduranceAtDestMin) ? "–"
+                                          : BriefingProvider.enduranceAtDestMin.toFixed(0) + " min"
+                                }
+                            }
+                            Column {
+                                spacing: 2
+                                visible: !isNaN(BriefingProvider.etaVsSunsetMin)
+                                Label { text: qsTr("Before sunset"); font.pixelSize: 10; color: "white"; opacity: 0.85 }
+                                Label {
+                                    font.bold: true; color: "white"
+                                    text: isNaN(BriefingProvider.etaVsSunsetMin) ? "–"
+                                          : BriefingProvider.etaVsSunsetMin.toFixed(0) + " min"
+                                }
+                            }
+                        }
+                    }
+
+                    // Markdown report
+                    Label {
+                        Layout.fillWidth: true
+                        text: BriefingProvider.report
+                        textFormat: Text.MarkdownText
+                        wrapMode: Text.Wrap
+                        onLinkActivated: Qt.openUrlExternally(link)
+                    }
+
+                    // TEMSI chart
+                    Image {
+                        Layout.fillWidth: true
+                        height: implicitHeight
+                        visible: BriefingProvider.chartUrl.toString() !== ""
+                        source: BriefingProvider.chartUrl
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                    }
+
+                    Label { Layout.preferredHeight: font.pixelSize }  // bottom spacer
+                }
+            }
+        }
+
     }
 
 
@@ -1008,8 +1209,6 @@ Page {
         }
 
     }
-
-    BriefingRequestDialog { id: briefingRequestDialog }
 
     LongTextDialog {
         id: clearDialog
