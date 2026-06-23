@@ -81,6 +81,7 @@ void Weather::BriefingProvider::clearResult()
 {
     m_report.clear();
     m_chartUrl.clear();
+    if (m_chartTempFile.isOpen()) m_chartTempFile.close();
     m_chartTempFile.remove();
     m_fuelAtDestinationL = qQNaN();
     m_legalReserveL      = qQNaN();
@@ -205,11 +206,13 @@ void Weather::BriefingProvider::requestBriefing(const QString& alternate,
         if (!chartBase64.isEmpty()) {
             const QByteArray pngData = QByteArray::fromBase64(chartBase64.toLatin1());
             m_chartTempFile.setFileTemplate(QDir::tempPath() + u"/enroute_chart_XXXXXX.png"_s);
+            m_chartTempFile.setAutoRemove(false);
             if (m_chartTempFile.open()) {
                 m_chartTempFile.write(pngData);
                 m_chartTempFile.flush();
                 m_chartUrl = QUrl::fromLocalFile(m_chartTempFile.fileName());
-                m_chartTempFile.close();
+                // Do NOT close — closing a QTemporaryFile with autoRemove=true deletes it.
+                // File is removed in clearResult() and when BriefingProvider is destroyed.
             }
         }
 
