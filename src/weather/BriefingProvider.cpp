@@ -39,6 +39,26 @@ Weather::BriefingProvider::BriefingProvider(QObject* parent)
     QSettings s;
     m_serverUrl   = s.value(u"BriefingProvider/serverUrl"_s).toString();
     m_llmProvider = s.value(u"BriefingProvider/llmProvider"_s, u"anthropic"_s).toString();
+
+    // Restore last result
+    m_report             = s.value(u"BriefingProvider/report"_s).toString();
+    m_fuelAtDestinationL = s.value(u"BriefingProvider/fuelAtDestinationL"_s, qQNaN()).toDouble();
+    m_legalReserveL      = s.value(u"BriefingProvider/legalReserveL"_s,      qQNaN()).toDouble();
+    m_marginL            = s.value(u"BriefingProvider/marginL"_s,            qQNaN()).toDouble();
+    m_enduranceAtDestMin = s.value(u"BriefingProvider/enduranceAtDestMin"_s, qQNaN()).toDouble();
+    m_etaVsSunsetMin     = s.value(u"BriefingProvider/etaVsSunsetMin"_s,     qQNaN()).toDouble();
+
+    const QString chartBase64 = s.value(u"BriefingProvider/chartBase64"_s).toString();
+    if (!chartBase64.isEmpty()) {
+        const QByteArray pngData = QByteArray::fromBase64(chartBase64.toLatin1());
+        m_chartTempFile.setFileTemplate(QDir::tempPath() + u"/enroute_chart_XXXXXX.png"_s);
+        m_chartTempFile.setAutoRemove(false);
+        if (m_chartTempFile.open()) {
+            m_chartTempFile.write(pngData);
+            m_chartTempFile.flush();
+            m_chartUrl = QUrl::fromLocalFile(m_chartTempFile.fileName());
+        }
+    }
 }
 
 Weather::BriefingProvider* Weather::BriefingProvider::create(QQmlEngine*, QJSEngine*)
@@ -227,6 +247,16 @@ void Weather::BriefingProvider::requestBriefing(const QString& alternate,
         m_marginL            = getDouble(u"margin_liters"_s);
         m_enduranceAtDestMin = getDouble(u"endurance_at_destination_min"_s);
         m_etaVsSunsetMin     = getDouble(u"eta_vs_sunset_min"_s);
+
+        // Persist result so it survives tab switches and app restarts
+        QSettings ps;
+        ps.setValue(u"BriefingProvider/report"_s,             m_report);
+        ps.setValue(u"BriefingProvider/fuelAtDestinationL"_s, m_fuelAtDestinationL);
+        ps.setValue(u"BriefingProvider/legalReserveL"_s,      m_legalReserveL);
+        ps.setValue(u"BriefingProvider/marginL"_s,            m_marginL);
+        ps.setValue(u"BriefingProvider/enduranceAtDestMin"_s, m_enduranceAtDestMin);
+        ps.setValue(u"BriefingProvider/etaVsSunsetMin"_s,     m_etaVsSunsetMin);
+        ps.setValue(u"BriefingProvider/chartBase64"_s,        chartBase64);
 
         setStatus(Status::Idle);
         emit resultChanged();

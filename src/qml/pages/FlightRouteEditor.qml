@@ -819,7 +819,7 @@ Page {
             contentWidth: width
             clip: true
 
-            property bool showResult: false
+            property bool showResult: BriefingProvider.report !== ""
 
             Connections {
                 target: BriefingProvider
