@@ -53,7 +53,6 @@ public:
     // Settings
     Q_PROPERTY(QString serverUrl   READ serverUrl   WRITE setServerUrl   NOTIFY serverUrlChanged)
     Q_PROPERTY(QString llmProvider READ llmProvider WRITE setLlmProvider NOTIFY llmProviderChanged)
-    Q_PROPERTY(QString temsiToken  READ temsiToken  WRITE setTemsiToken  NOTIFY temsiTokenChanged)
 
     // Result — all populated together when a request succeeds
     Q_PROPERTY(QString report    READ report    NOTIFY resultChanged)
@@ -74,7 +73,6 @@ public:
     [[nodiscard]] QString errorMessage() const { return m_errorMessage; }
     [[nodiscard]] QString serverUrl()    const { return m_serverUrl; }
     [[nodiscard]] QString llmProvider()  const { return m_llmProvider; }
-    [[nodiscard]] QString temsiToken()   const { return m_temsiToken; }
     [[nodiscard]] QString report()    const { return m_report; }
     [[nodiscard]] QUrl    chartUrl()  const { return m_chartUrl; }
     [[nodiscard]] double  fuelAtDestinationL()  const { return m_fuelAtDestinationL; }
@@ -89,7 +87,6 @@ public:
 
     void setServerUrl(const QString& url);
     void setLlmProvider(const QString& provider);
-    void setTemsiToken(const QString& token);
 
     /*! \brief POST a briefing request to the server.
      *
@@ -111,7 +108,6 @@ signals:
     void resultChanged();
     void serverUrlChanged();
     void llmProviderChanged();
-    void temsiTokenChanged();
 
 private:
     void setStatus(Status s, const QString& error = {});
@@ -122,7 +118,6 @@ private:
     QString m_errorMessage;
     QString m_serverUrl;
     QString m_llmProvider   {QStringLiteral("anthropic")};
-    QString m_temsiToken;
 
     // Result fields
     QString        m_report;

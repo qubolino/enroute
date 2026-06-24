@@ -468,19 +468,6 @@ Page {
                     onEditingFinished: BriefingProvider.serverUrl = text.trim()
                 }
 
-                Label {
-                    text: qsTr("TEMSI token (Aeroweb login=)")
-                    font.pixelSize: settingsPage.font.pixelSize
-                }
-                TextField {
-                    id: briefingTemsiTokenField
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 0
-                    placeholderText: qsTr("URL-encoded login= value")
-                    text: BriefingProvider.temsiToken
-                    inputMethodHints: Qt.ImhNoPredictiveText
-                    onEditingFinished: BriefingProvider.temsiToken = text.trim()
-                }
             }
 
             Item { Layout.columnSpan: 2; Layout.preferredHeight: 1 }

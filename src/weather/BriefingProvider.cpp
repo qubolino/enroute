@@ -39,7 +39,6 @@ Weather::BriefingProvider::BriefingProvider(QObject* parent)
     QSettings s;
     m_serverUrl   = s.value(u"BriefingProvider/serverUrl"_s).toString();
     m_llmProvider = s.value(u"BriefingProvider/llmProvider"_s, u"anthropic"_s).toString();
-    m_temsiToken  = s.value(u"BriefingProvider/temsiToken"_s).toString();
 
     // Restore last result
     m_report             = s.value(u"BriefingProvider/report"_s).toString();
@@ -89,13 +88,6 @@ void Weather::BriefingProvider::setLlmProvider(const QString& provider)
     emit llmProviderChanged();
 }
 
-void Weather::BriefingProvider::setTemsiToken(const QString& token)
-{
-    if (m_temsiToken == token) return;
-    m_temsiToken = token;
-    QSettings().setValue(u"BriefingProvider/temsiToken"_s, token);
-    emit temsiTokenChanged();
-}
 
 void Weather::BriefingProvider::setStatus(Status s, const QString& error)
 {
@@ -190,8 +182,6 @@ void Weather::BriefingProvider::requestBriefing(double usableFuelL,
     body[u"aircraft"_s]          = aircraftObj;
     if (!m_llmProvider.isEmpty())
         body[u"provider"_s]      = m_llmProvider;
-    if (!m_temsiToken.trimmed().isEmpty())
-        body[u"temsi_login_token"_s] = m_temsiToken.trimmed();
 
     const QByteArray payload = QJsonDocument(body).toJson(QJsonDocument::Compact);
 
