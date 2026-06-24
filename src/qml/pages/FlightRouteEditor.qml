@@ -37,9 +37,6 @@ Page {
     Settings {
         id: briefingSettings
         category: "BriefingRequest"
-        property string alternate:   ""
-        property string temsiToken:  ""
-        property int    providerIdx: 0
         property string usableFuelL: ""
     }
 
@@ -862,37 +859,23 @@ Page {
                         onTextChanged: briefingSettings.usableFuelL = text
                     }
 
-                    Label { text: qsTr("Alternate (optional ICAO)") }
+                    Label { text: qsTr("Planned off-block (UTC)") }
                     MyTextField {
-                        id: briefingAlternate
+                        id: briefingTimeField
                         Layout.fillWidth: true
-                        placeholderText: "LFBD"
-                        text: briefingSettings.alternate
-                        inputMethodHints: Qt.ImhUppercaseOnly
-                        maximumLength: 4
-                        onTextChanged: briefingSettings.alternate = text.toUpperCase()
-                    }
-
-                    Label { text: qsTr("LLM provider") }
-                    ComboBox {
-                        id: briefingProviderCombo
-                        Layout.fillWidth: true
-                        model: ["anthropic", "mistral", "ollama"]
-                        currentIndex: briefingSettings.providerIdx
-                        onCurrentIndexChanged: {
-                            briefingSettings.providerIdx = currentIndex
-                            BriefingProvider.llmProvider = currentValue
+                        placeholderText: "HH:MM"
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        maximumLength: 5
+                        validator: RegularExpressionValidator {
+                            regularExpression: /^([01]\d|2[0-3]):[0-5]\d$/
                         }
-                        Component.onCompleted: BriefingProvider.llmProvider = currentValue
-                    }
-
-                    Label { text: qsTr("TEMSI token (optional)") }
-                    MyTextField {
-                        id: briefingTemsiToken
-                        Layout.fillWidth: true
-                        placeholderText: qsTr("Aeroweb login= token")
-                        text: briefingSettings.temsiToken
-                        onTextChanged: briefingSettings.temsiToken = text
+                        // Default: now + 30 min, rounded to nearest minute
+                        Component.onCompleted: {
+                            var d = new Date(Date.now() + 30 * 60000)
+                            var hh = String(d.getUTCHours()).padStart(2, '0')
+                            var mm = String(d.getUTCMinutes()).padStart(2, '0')
+                            text = hh + ":" + mm
+                        }
                     }
 
                     Label {
@@ -915,13 +898,24 @@ Page {
                             text: qsTr("Request Briefing")
                             enabled: BriefingProvider.status !== BriefingProvider.Loading
                                      && Navigator.flightRoute.size >= 2
+                                     && briefingTimeField.acceptableInput
                             onClicked: {
                                 PlatformAdaptor.vibrateBrief()
                                 briefingErrorLabel.visible = false
+                                // Build ISO 8601 UTC from the HH:MM field.
+                                // Use today's date if the time is still in the future,
+                                // otherwise tomorrow's.
+                                var parts = briefingTimeField.text.split(":")
+                                var hh = parseInt(parts[0]), mm = parseInt(parts[1])
+                                var now = new Date()
+                                var dep = new Date(Date.UTC(
+                                    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),
+                                    hh, mm, 0))
+                                if (dep <= now) dep.setUTCDate(dep.getUTCDate() + 1)
+                                var iso = dep.toISOString().replace(/\.\d{3}Z$/, "Z")
                                 BriefingProvider.requestBriefing(
-                                    briefingAlternate.text.toUpperCase(),
                                     parseFloat(briefingFuelField.text) || 0.0,
-                                    briefingTemsiToken.text
+                                    iso
                                 )
                             }
                         }
