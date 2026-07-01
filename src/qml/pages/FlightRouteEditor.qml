@@ -878,6 +878,25 @@ Page {
                         }
                     }
 
+                    // ── Load saved briefing ──────────────────────────────────
+                    Label { text: qsTr("Or load a saved briefing") }
+                    MyTextField {
+                        id: briefingLoadField
+                        Layout.fillWidth: true
+                        placeholderText: "https://breef.ing/?id=…"
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: qsTr("Load")
+                        enabled: briefingLoadField.text.trim() !== ""
+                                 && BriefingProvider.status !== BriefingProvider.Loading
+                        onClicked: {
+                            PlatformAdaptor.vibrateBrief()
+                            briefingErrorLabel.visible = false
+                            BriefingProvider.loadBriefing(briefingLoadField.text.trim())
+                        }
+                    }
+
                     Label {
                         id: briefingErrorLabel
                         Layout.fillWidth: true
@@ -935,6 +954,32 @@ Page {
                             PlatformAdaptor.vibrateBrief()
                             briefingTab.showResult = false
                             briefingErrorLabel.visible = false
+                        }
+                    }
+
+                    // Shareable breef.ing link
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: BriefingProvider.briefingId !== ""
+                        spacing: 4
+
+                        Label {
+                            text: "breef.ing/?id=" + BriefingProvider.briefingId
+                            color: Material.accentColor
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: Qt.openUrlExternally(
+                                    "https://breef.ing/?id=" + BriefingProvider.briefingId)
+                            }
+                        }
+                        ToolButton {
+                            icon.source: "/icons/material/ic_content_copy.svg"
+                            onClicked: {
+                                PlatformAdaptor.vibrateBrief()
+                                PlatformAdaptor.setClipboardText(
+                                    "https://breef.ing/?id=" + BriefingProvider.briefingId)
+                                toast.doToast(qsTr("Link copied"))
+                            }
                         }
                     }
 

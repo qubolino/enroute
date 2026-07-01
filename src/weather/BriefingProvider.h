@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QQmlEngine>
@@ -29,6 +30,7 @@ namespace Weather {
 
 /*! \brief Posts a flight plan + aircraft profile to the preflight briefing server
  *  and exposes the returned markdown report, margins summary, and TEMSI chart to QML.
+ *  Also supports loading a previously stored briefing by ID or breef.ing URL.
  */
 class BriefingProvider : public QObject {
     Q_OBJECT
@@ -55,15 +57,16 @@ public:
     Q_PROPERTY(QString llmProvider READ llmProvider WRITE setLlmProvider NOTIFY llmProviderChanged)
 
     // Result — all populated together when a request succeeds
-    Q_PROPERTY(QString report    READ report    NOTIFY resultChanged)
-    Q_PROPERTY(QUrl    chartUrl  READ chartUrl  NOTIFY resultChanged)  // file:// URL, empty if none
+    Q_PROPERTY(QString briefingId READ briefingId NOTIFY resultChanged)  // 12-char hex, "" if none
+    Q_PROPERTY(QString report     READ report     NOTIFY resultChanged)
+    Q_PROPERTY(QUrl    chartUrl   READ chartUrl   NOTIFY resultChanged)  // file:// URL, empty if none
 
     // Margins (from data.margins) — NaN when not available
-    Q_PROPERTY(double fuelAtDestinationL    READ fuelAtDestinationL    NOTIFY resultChanged)
-    Q_PROPERTY(double legalReserveL         READ legalReserveL         NOTIFY resultChanged)
-    Q_PROPERTY(double marginL               READ marginL               NOTIFY resultChanged)
-    Q_PROPERTY(double enduranceAtDestMin    READ enduranceAtDestMin    NOTIFY resultChanged)
-    Q_PROPERTY(double etaVsSunsetMin        READ etaVsSunsetMin        NOTIFY resultChanged)  // NaN if unavailable
+    Q_PROPERTY(double fuelAtDestinationL READ fuelAtDestinationL NOTIFY resultChanged)
+    Q_PROPERTY(double legalReserveL      READ legalReserveL      NOTIFY resultChanged)
+    Q_PROPERTY(double marginL            READ marginL            NOTIFY resultChanged)
+    Q_PROPERTY(double enduranceAtDestMin READ enduranceAtDestMin NOTIFY resultChanged)
+    Q_PROPERTY(double etaVsSunsetMin     READ etaVsSunsetMin     NOTIFY resultChanged)
 
     //
     // Getters
@@ -73,8 +76,9 @@ public:
     [[nodiscard]] QString errorMessage() const { return m_errorMessage; }
     [[nodiscard]] QString serverUrl()    const { return m_serverUrl; }
     [[nodiscard]] QString llmProvider()  const { return m_llmProvider; }
-    [[nodiscard]] QString report()    const { return m_report; }
-    [[nodiscard]] QUrl    chartUrl()  const { return m_chartUrl; }
+    [[nodiscard]] QString briefingId()   const { return m_briefingId; }
+    [[nodiscard]] QString report()       const { return m_report; }
+    [[nodiscard]] QUrl    chartUrl()     const { return m_chartUrl; }
     [[nodiscard]] double  fuelAtDestinationL()  const { return m_fuelAtDestinationL; }
     [[nodiscard]] double  legalReserveL()       const { return m_legalReserveL; }
     [[nodiscard]] double  marginL()             const { return m_marginL; }
@@ -88,20 +92,18 @@ public:
     void setServerUrl(const QString& url);
     void setLlmProvider(const QString& provider);
 
-    /*! \brief POST a briefing request to the server.
-     *
-     *  Reads the current route from Navigator and builds a `waypoints[]` request
-     *  (name + lat/lon/alt_m per waypoint). Falls back to the legacy `route[]` array
-     *  only when every waypoint is an ICAO airport.
-     *
-     *  @param alternate    ICAO code of alternate aerodrome, or empty string.
-     *  @param usableFuelL  Usable fuel at departure in litres.
-     *  @param temsiToken   Aeroweb login= token, or empty string.
-     */
-    /*! @param usableFuelL      Total usable fuel at departure in litres.
+    /*! \brief POST a new briefing request to the server.
+     *  @param usableFuelL      Total usable fuel at departure in litres.
      *  @param plannedOffBlock  ISO 8601 UTC string, e.g. "2026-06-24T10:30:00Z".
      */
     Q_INVOKABLE void requestBriefing(double usableFuelL, const QString& plannedOffBlock);
+
+    /*! \brief Load a previously stored briefing by ID or URL.
+     *  Accepts a bare 12-char hex ID ("9b2a5796e1ca") or a full
+     *  breef.ing URL ("https://breef.ing/?id=9b2a5796e1ca").
+     *  GETs from m_serverUrl/briefing/{id}.
+     */
+    Q_INVOKABLE void loadBriefing(const QString& idOrUrl);
 
 signals:
     void statusChanged();
@@ -112,6 +114,9 @@ signals:
 private:
     void setStatus(Status s, const QString& error = {});
     void clearResult();
+    /*! Parses a BriefingResponse JSON object into member fields and persists to QSettings.
+     *  Returns an error string on failure, empty string on success. */
+    QString parseResponse(const QJsonObject& root);
 
     QNetworkAccessManager m_nam;
     Status  m_status        {Status::Idle};
@@ -120,6 +125,7 @@ private:
     QString m_llmProvider   {QStringLiteral("anthropic")};
 
     // Result fields
+    QString        m_briefingId;
     QString        m_report;
     QUrl           m_chartUrl;
     QTemporaryFile m_chartTempFile;
